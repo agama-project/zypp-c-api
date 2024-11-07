@@ -26,6 +26,9 @@ extern "C" {
   // when no longer needed, use free_repository_list
   struct RepositoryList list_repositories();
 
+  // the last call that will free all pointers to zypp holded by agama
+  void free_zypp();
+
 #ifdef __cplusplus
 }
 #endif

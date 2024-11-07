@@ -8,6 +8,11 @@ extern "C" {
   static zypp::ZYpp::Ptr zypp_pointer = NULL;
   static zypp::RepoManager* repo_manager = NULL;
 
+  void free_zypp() {
+    zypp_pointer = NULL; // shared ptr assignment operator will free original pointer
+    delete(repo_manager);
+  }
+
   zypp::ZYpp::Ptr zypp_ptr() {
     if (zypp_pointer != NULL)
     {
@@ -65,13 +70,13 @@ extern "C" {
     free(repo->url);
     free(repo->alias);
     free(repo->userName);
-    free(repo);
   }
 
   void free_repository_list(struct RepositoryList* list) {
     for (unsigned i = 0; i < list->size; ++i) {
       free_repository(list->repos+i);
     }
+    free(list->repos);
   }
 
   struct RepositoryList list_repositories() {
