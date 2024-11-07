@@ -41,8 +41,7 @@ extern "C" {
     return NULL;
   }
 
-  int init_target(const char* root) {
-    // TODO: progress
+  int init_target(const char* root, ProgressCallback progress, void *user_data) {
     const std::string root_str(root);
 
     try
@@ -55,7 +54,10 @@ extern "C" {
         if (repo_manager) delete repo_manager;
         repo_manager = new_repo_manager;
 
+        // TODO: localization
+        progress("Initializing the Target System", 0, 2, user_data);
 	zypp_ptr()->initializeTarget(root_str, false);
+        progress("Reading Installed Packages", 1, 2, user_data);
         zypp_ptr()->target()->load();
     }
     catch (zypp::Exception & excpt)
@@ -77,6 +79,25 @@ extern "C" {
       free_repository(list->repos+i);
     }
     free(list->repos);
+  }
+
+  int refresh_repositories() {
+    if (repo_manager == NULL) {
+      //TODO: error reporting?
+      return 0;
+    }
+
+    try {
+      std::list<zypp::RepoInfo> zypp_repos = repo_manager->knownRepositories();
+      for (auto iter = zypp_repos.begin(); iter != zypp_repos.end(); ++iter) {
+        repo_manager->refreshMetadata(*iter);
+      }
+     } catch (zypp::Exception & excpt)
+    {
+        return 0;
+    }
+    
+    return 1;
   }
 
   struct RepositoryList list_repositories() {

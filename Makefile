@@ -1,9 +1,9 @@
 CXX=g++
-CXXFLAGS=-I. -Wall -std=c++14 -lzypp
+CXXFLAGS=-I. -Izypp -Wall -std=c++14 -lzypp
 C=gcc
-CFLAGS=-I. -Izypp -Wall -lzypp -lstdc++
+CFLAGS=-I. -Wall -lzypp -lstdc++
 DEPS = lib.h
-OBJ = lib.o main.o
+OBJ = lib.o callbacks.o main.o
 
 %.o: %.cxx $(DEPS)
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
