@@ -24,7 +24,12 @@ int main() {
    free_repository_list(&list);
 
    // refresh all repos to get some zypp progress
-   refresh_repositories();
+   struct Status status;
+   refresh_repositories(&status, zypp_progress, NULL);
+   if (status.state != STATE_SUCCEED) {
+      printf("refresh ERROR!: %s\n", status.error);
+   }
+   free_status(status);
    free_zypp();
    return 0;
 }

@@ -20,8 +20,11 @@ extern "C" {
   // return value indicate if zypp should abort operation. Can be ignored
   typedef int (*ZyppProgressCallback)(struct ProgressData zypp_data, void *user_data);
   void set_zypp_progress_callback (ZyppProgressCallback progress, void *user_data);
-
 #ifdef __cplusplus
 }
+// C++ specific code call that cannot be used from C. Used to pass progress class between o files.
+#include <zypp-core/ui/progressdata.h>
+zypp::ProgressData::ReceiverFnc get_progress_callback();
+zypp::ProgressData::ReceiverFnc create_progress_callback(ZyppProgressCallback progress, void *user_data);
 #endif
 #endif

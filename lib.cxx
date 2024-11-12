@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "callbacks.h"
 
 #include <zypp/ZYppFactory.h>
 #include <zypp/ZYpp.h>
@@ -81,23 +82,31 @@ extern "C" {
     free(list->repos);
   }
 
-  int refresh_repositories() {
-    if (repo_manager == NULL) {
-      //TODO: error reporting?
-      return 0;
+  void free_status(struct Status status) {
+    if (status.error != NULL) {
+      free(status.error);
     }
+  }
+
+  void refresh_repositories(struct Status* status, ZyppProgressCallback callback, void *data) {
+    if (repo_manager == NULL) {
+      status->state = status->STATE_FAILED;
+      status->error = strdup("Internal Error: Repo manager is not initialized.");
+      return;
+    }
+
+    auto progress_cb = create_progress_callback(callback, data);
 
     try {
       std::list<zypp::RepoInfo> zypp_repos = repo_manager->knownRepositories();
       for (auto iter = zypp_repos.begin(); iter != zypp_repos.end(); ++iter) {
-        repo_manager->refreshMetadata(*iter);
+        repo_manager->refreshMetadata(*iter, zypp::RepoManager::RawMetadataRefreshPolicy::RefreshForced, progress_cb);
       }
-     } catch (zypp::Exception & excpt)
+    } catch (zypp::Exception & excpt)
     {
-        return 0;
+      status->state = status->STATE_FAILED;
+      status->error = strdup(excpt.asUserString().c_str());
     }
-    
-    return 1;
   }
 
   struct RepositoryList list_repositories() {
