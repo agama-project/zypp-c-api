@@ -1,5 +1,14 @@
 Now it is just POC to have thin C layer only for agama purpose on top of libzypp.
 
+### Repo Organization
+
+Repository contains three directories:
+
+- c-layer that contain sources to build static library and in include directory C ready headers.
+  The internal directory contains C++ headers that is used only for inter-communication and is private.
+- c-example is example pure C binary that is using static library and produce some output
+- rust is target rust code that should be used from Agama, but it is not ready yet.
+
 ### Libzypp Notes
 
 - libzypp is not thread safe
