@@ -11,8 +11,28 @@ int zypp_progress(struct ProgressData data, void *user_data) {
    return 1;
 }
 
+void download_progress_start(const char* url, const char* localfile, void *user_data) {
+   printf("Starting download of %s to %s\n", url, localfile);
+}
+
+int download_progress_progress(int value, const char* url, double bps_avg, double bps_current, void *user_data) {
+   printf("Downloading %s with %i%% (speed: now %f avg %f)\n", url, value, bps_current, bps_avg);
+   return 1;
+}
+
+enum PROBLEM_RESPONSE download_progress_problem(const char* url, int error, const char* description, void *user_data) {
+   printf("Download ERROR for %s: %s\n", url, description);
+   printf("Aborting...\n");
+   return PROBLEM_ABORT;
+}
+
+void download_progress_finish(const char* url, int error, const char* reason, void *user_data) {
+   printf("Download of %s finished with %s\n", url, reason);
+}
+
 int main() {
    set_zypp_progress_callback(zypp_progress, NULL);
+   set_zypp_download_callbacks(download_progress_start, download_progress_progress, download_progress_problem, download_progress_finish, NULL);
    printf("List of repos:\n");
    const char* prefix = "Loading '/'";
    init_target("/", progress, (void *)prefix);

@@ -1,9 +1,12 @@
 #include "lib.h"
 #include "callbacks.h"
+#include "callbacks.hxx"
 
 #include <zypp/ZYppFactory.h>
 #include <zypp/ZYpp.h>
 #include <zypp/RepoManager.h>
+#include <zypp/base/Logger.h>
+#include <zypp/base/LogControl.h>
 
 extern "C" {
   static zypp::ZYpp::Ptr zypp_pointer = NULL;
@@ -17,8 +20,12 @@ extern "C" {
   zypp::ZYpp::Ptr zypp_ptr() {
     if (zypp_pointer != NULL)
     {
-	return zypp_pointer;
+	    return zypp_pointer;
     }
+
+    // set logging to stderr. For agama write it to own file or stderr to get it logged to journal?
+    zypp::base::LogControl::instance().logToStdErr();
+    
 
     int max_count = 5;
     unsigned int seconds = 3;
@@ -100,8 +107,11 @@ extern "C" {
     try {
       std::list<zypp::RepoInfo> zypp_repos = repo_manager->knownRepositories();
       for (auto iter = zypp_repos.begin(); iter != zypp_repos.end(); ++iter) {
+        printf("refreshing repo %s\n", iter->alias().c_str());
         repo_manager->refreshMetadata(*iter, zypp::RepoManager::RawMetadataRefreshPolicy::RefreshForced, progress_cb);
       }
+      status->state = status->STATE_SUCCEED;
+      status->error = NULL;
     } catch (zypp::Exception & excpt)
     {
       status->state = status->STATE_FAILED;
