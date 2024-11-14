@@ -1,7 +1,7 @@
 [workspace]
 members = [
   "zypp-agama",
-  "zypp-agama-example",
+  "zypp-agama-example", "zypp-agama-sys",
 ]
 resolver = "2"
 
