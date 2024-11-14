@@ -5,10 +5,10 @@ OBJ = main.o
 all: main
 
 clean:
-	rm -f *.o main
-
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	rm -vf *.o main
 
 main: $(OBJ)
 	$(CC) -o $@ $^ ../c-layer/agama-zypp.a $(CFLAGS)
+
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)

@@ -23,9 +23,10 @@ extern "C" {
 	    return zypp_pointer;
     }
 
-    // set logging to stderr. For agama write it to own file or stderr to get it logged to journal?
-    zypp::base::LogControl::instance().logToStdErr();
-    
+    // set logging to ~/zypp-agama.log for now. For final we need to decide it
+    zypp::Pathname home(getenv("HOME"));
+    zypp::Pathname log_path = home.cat("zypp-agama.log");
+    zypp::base::LogControl::instance().logfile(log_path);
 
     int max_count = 5;
     unsigned int seconds = 3;
@@ -63,9 +64,11 @@ extern "C" {
         repo_manager = new_repo_manager;
 
         // TODO: localization
-        progress("Initializing the Target System", 0, 2, user_data);
+        if (progress != NULL)
+          progress("Initializing the Target System", 0, 2, user_data);
 	zypp_ptr()->initializeTarget(root_str, false);
-        progress("Reading Installed Packages", 1, 2, user_data);
+        if (progress != NULL)
+          progress("Reading Installed Packages", 1, 2, user_data);
         zypp_ptr()->target()->load();
     }
     catch (zypp::Exception & excpt)

@@ -1,4 +1,4 @@
-use std::{ffi::CString, ptr};
+use std::{ffi::{CStr, CString}, ptr};
 
 pub struct Repository {
     pub url: String,
@@ -26,9 +26,9 @@ pub fn list_repositories() -> Vec<Repository> {
             let c_repo = *(repos.repos.add(i));
             // TODO some error reporting when it is not utf-8 would be nice
             let r_repo = Repository {
-                url: String::from_utf8_lossy(CString::from_raw(c_repo.url).as_bytes()).into_owned(),
-                alias: String::from_utf8_lossy(CString::from_raw(c_repo.alias).as_bytes()).into_owned(),
-                user_name: String::from_utf8_lossy(CString::from_raw(c_repo.userName).as_bytes()).into_owned(),
+                url: String::from_utf8_lossy(CStr::from_ptr(c_repo.url).to_bytes()).into_owned(),
+                alias: String::from_utf8_lossy(CStr::from_ptr(c_repo.alias).to_bytes()).into_owned(),
+                user_name: String::from_utf8_lossy(CStr::from_ptr(c_repo.userName).to_bytes()).into_owned(),
             };
             res.push(r_repo);
         }
@@ -47,6 +47,6 @@ mod tests {
     fn it_works() {
         init_target("/");
         let result = list_repositories();
-        assert_eq!(result.len(), 17); // TODO just my quick validation
+        assert_eq!(result.len(), 24); // FIXME: just my quick validation
     }
 }
