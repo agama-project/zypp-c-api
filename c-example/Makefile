@@ -8,7 +8,7 @@ clean:
 	rm -vf *.o main
 
 main: $(OBJ)
-	$(CC) -o $@ $^ ../c-layer/agama-zypp.a $(CFLAGS)
+	$(CC) -o $@ $^ ../c-layer/libagama-zypp.a $(CFLAGS)
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
