@@ -14,21 +14,24 @@ pub fn init_target(root: &str) {
     }
 }
 
+unsafe fn string_from_ptr(c_ptr: *const i8) -> String {
+    String::from_utf8_lossy(CStr::from_ptr(c_ptr).to_bytes()).into_owned()
+}
+
 // TODO: use result
 pub fn list_repositories() -> Vec<Repository> {
     let mut res = vec![];
 
     unsafe {
         let mut repos = zypp_agama_sys::list_repositories();
-        // unwrap is ok as it will crash only on less then 32 archs,so safe for agama
+        // unwrap is ok as it will crash only on less then 32b archs,so safe for agama
         let size_usize: usize = repos.size.try_into().unwrap();
         for i in 0..size_usize {
             let c_repo = *(repos.repos.add(i));
-            // TODO some error reporting when it is not utf-8 would be nice
             let r_repo = Repository {
-                url: String::from_utf8_lossy(CStr::from_ptr(c_repo.url).to_bytes()).into_owned(),
-                alias: String::from_utf8_lossy(CStr::from_ptr(c_repo.alias).to_bytes()).into_owned(),
-                user_name: String::from_utf8_lossy(CStr::from_ptr(c_repo.userName).to_bytes()).into_owned(),
+                url: string_from_ptr(c_repo.url),
+                alias: string_from_ptr(c_repo.alias),
+                user_name: string_from_ptr(c_repo.userName),
             };
             res.push(r_repo);
         }
