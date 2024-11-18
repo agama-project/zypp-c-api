@@ -1,16 +1,46 @@
-use std::{ffi::{CStr, CString}, ptr};
+use std::{
+    ffi::{CStr, CString},
+    os::raw::{c_char, c_uint, c_void},
+};
+
+use zypp_agama_sys::ProgressCallback;
 
 pub struct Repository {
     pub url: String,
     pub alias: String,
-    pub user_name: String, 
+    pub user_name: String,
+}
+
+// TODO: is there better way how to use type from ProgressCallback binding type?
+unsafe extern "C" fn progress_callback<F>(
+    text: *const c_char,
+    stage: c_uint,
+    total: c_uint,
+    user_data: *mut c_void,
+) where
+    F: FnMut(String, u32, u32),
+{
+    let user_data = &mut *(user_data as *mut F);
+    user_data(string_from_ptr(text), stage.into(), total.into());
+}
+
+fn get_progress_callback<F>(_closure: &F) -> ProgressCallback
+where
+    F: FnMut(String, u32, u32),
+{
+    Some(progress_callback::<F>)
 }
 
 // TODO: use result
-pub fn init_target(root: &str) {
+pub fn init_target<F>(root: &str, progress: F)
+where
+    F: FnMut(String, u32, u32),
+{
     unsafe {
+        let mut closure = progress;
+        let cb = get_progress_callback(&closure);
         let c_root = CString::new(root).unwrap();
-        zypp_agama_sys::init_target(c_root.as_ptr(), None, ptr::null_mut());
+        zypp_agama_sys::init_target(c_root.as_ptr(), cb, &mut closure as *mut _ as *mut c_void);
     }
 }
 
@@ -36,7 +66,9 @@ pub fn list_repositories() -> Vec<Repository> {
             res.push(r_repo);
         }
         let repos_rawp = &mut repos;
-        zypp_agama_sys::free_repository_list(repos_rawp as *mut _ as *mut zypp_agama_sys::RepositoryList);
+        zypp_agama_sys::free_repository_list(
+            repos_rawp as *mut _ as *mut zypp_agama_sys::RepositoryList,
+        );
     }
 
     res
@@ -46,9 +78,13 @@ pub fn list_repositories() -> Vec<Repository> {
 mod tests {
     use super::*;
 
+    fn progress_cb(_text: String, _stage: u32, _total: u32) {
+        // for test do nothing..maybe some check of callbacks?
+    }
+
     #[test]
     fn it_works() {
-        init_target("/");
+        init_target("/", progress_cb);
         let result = list_repositories();
         assert_eq!(result.len(), 24); // FIXME: just my quick validation
     }
