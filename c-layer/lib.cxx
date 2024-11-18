@@ -50,7 +50,7 @@ extern "C" {
     return NULL;
   }
 
-  int init_target(const char* root, ProgressCallback progress, void *user_data) {
+  void init_target(const char* root, struct Status* status, ProgressCallback progress, void *user_data) {
     const std::string root_str(root);
 
     try
@@ -73,10 +73,13 @@ extern "C" {
     }
     catch (zypp::Exception & excpt)
     {
-        return 0;
+      status->state = status->STATE_FAILED;
+      status->error = strdup(excpt.asUserString().c_str());
+      return;
     }
 
-    return 1;
+    status->state = status->STATE_SUCCEED;
+    status->error = NULL;
   }
 
   void free_repository(struct Repository* repo) {

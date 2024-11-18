@@ -1,9 +1,8 @@
 use std::{
-    ffi::{CStr, CString},
-    os::raw::{c_char, c_uint, c_void},
+    error::Error, ffi::{CStr, CString}, fmt, os::raw::{c_char, c_uint, c_void}, ptr::null_mut
 };
 
-use zypp_agama_sys::ProgressCallback;
+use zypp_agama_sys::{free_status, ProgressCallback, Status, Status_STATE_STATE_SUCCEED};
 
 pub struct Repository {
     pub url: String,
@@ -31,8 +30,41 @@ where
     Some(progress_callback::<F>)
 }
 
+#[derive(Debug)]
+pub struct ZyppError {
+    details: String
+}
+
+impl ZyppError {
+    fn new(msg: &str) -> ZyppError {
+        ZyppError{details: msg.to_string()}
+    }
+}
+
+impl fmt::Display for ZyppError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"{}",self.details)
+    }
+}
+
+impl Error for ZyppError {
+    fn description(&self) -> &str {
+        &self.details
+    }
+}
+
+unsafe fn status_to_result_void(status: Status) -> Result<(), ZyppError> {
+    let res = if status.state == Status_STATE_STATE_SUCCEED {
+        Ok(())
+    } else {
+        Err(ZyppError::new(string_from_ptr(status.error).as_str()))
+    };
+    free_status(status);
+    return res;
+} 
+
 // TODO: use result
-pub fn init_target<F>(root: &str, progress: F)
+pub fn init_target<F>(root: &str, progress: F) -> Result<(), ZyppError>
 where
     F: FnMut(String, u32, u32),
 {
@@ -40,7 +72,10 @@ where
         let mut closure = progress;
         let cb = get_progress_callback(&closure);
         let c_root = CString::new(root).unwrap();
-        zypp_agama_sys::init_target(c_root.as_ptr(), cb, &mut closure as *mut _ as *mut c_void);
+        let mut status: Status = Status { state: Status_STATE_STATE_SUCCEED, error: null_mut() };
+        let status_ptr = &mut status as *mut _ as *mut Status;
+        zypp_agama_sys::init_target(c_root.as_ptr(), status_ptr, cb, &mut closure as *mut _ as *mut c_void);
+        return status_to_result_void(status);
     }
 }
 
@@ -84,7 +119,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        init_target("/", progress_cb);
+        init_target("/", progress_cb).unwrap();
         let result = list_repositories();
         assert_eq!(result.len(), 24); // FIXME: just my quick validation
     }

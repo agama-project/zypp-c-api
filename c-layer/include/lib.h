@@ -38,7 +38,7 @@ extern "C" {
   // user_data is never touched by method and is used only to pass local data for callback
   // TODO: Do we want to support response for callback that allows early exit of execution?
   typedef void (*ProgressCallback)(const char *text, unsigned stage, unsigned total, void *user_data);
-  int init_target(const char* root, ProgressCallback progress, void *user_data);
+  void init_target(const char* root, struct Status* status, ProgressCallback progress, void *user_data);
 
   // repository array in list
   // when no longer needed, use free_repository_list to release memory

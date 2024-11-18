@@ -125,9 +125,10 @@ extern "C" {
     pub fn free_status(s: Status);
     pub fn init_target(
         root: *const ::std::os::raw::c_char,
+        status: *mut Status,
         progress: ProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+    );
     pub fn list_repositories() -> RepositoryList;
     pub fn free_repository_list(repo_list: *mut RepositoryList);
     pub fn refresh_repositories(
