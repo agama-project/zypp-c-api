@@ -131,10 +131,6 @@ extern "C" {
     );
     pub fn list_repositories() -> RepositoryList;
     pub fn free_repository_list(repo_list: *mut RepositoryList);
-    pub fn refresh_repositories(
-        status: *mut Status,
-        callback: ZyppProgressCallback,
-        data: *mut ::std::os::raw::c_void,
-    );
+    pub fn refresh_repository(alias: *const ::std::os::raw::c_char, status: *mut Status);
     pub fn free_zypp();
 }

@@ -2,22 +2,50 @@
 #include "callbacks.h"
 #include "callbacks.hxx"
 
+#include <cstddef>
+#include <zypp/RepoInfo.h>
 #include <zypp/RepoManager.h>
 #include <zypp/ZYpp.h>
 #include <zypp/ZYppFactory.h>
 #include <zypp/base/LogControl.h>
 #include <zypp/base/Logger.h>
 
+#include <cstdarg>
+
 extern "C" {
 static zypp::ZYpp::Ptr zypp_pointer = NULL;
 static zypp::RepoManager *repo_manager = NULL;
 
 void free_zypp() {
-  zypp_pointer = NULL; // shared ptr assignment operator will free original pointer
+  zypp_pointer =
+      NULL; // shared ptr assignment operator will free original pointer
   delete (repo_manager);
 }
 
-zypp::ZYpp::Ptr zypp_ptr() {
+// helper to get allocated formated string. Sadly C does not provide any portable way to do it.
+// if we are ok with GNU or glib then it provides it
+static char* format_alloc(const char* const format...) {
+  // `vsnprintf()` changes `va_list`'s state, so using it after that is UB.
+  // We need the args twice, so it is safer to just get two copies.
+  va_list args1;
+  va_list args2;
+  va_start(args1, format);
+  va_start(args2, format);
+
+  // vsnprintf with len 0 just return needed size and add trailing zero.
+  size_t needed = 1 + vsnprintf(NULL, 0, format, args1);
+
+  char* buffer = (char *) malloc(needed * sizeof(char));
+
+  vsnprintf(buffer, needed, format, args2);
+
+  va_end(args1);
+  va_end(args2);
+
+  return buffer;
+}
+
+static zypp::ZYpp::Ptr zypp_ptr() {
   if (zypp_pointer != NULL) {
     return zypp_pointer;
   }
@@ -94,21 +122,22 @@ void free_status(struct Status status) {
   }
 }
 
-void refresh_repositories(struct Status *status, ZyppProgressCallback callback, void *data) {
+void refresh_repository(const char* alias, struct Status *status) {
   if (repo_manager == NULL) {
     status->state = status->STATE_FAILED;
     status->error = strdup("Internal Error: Repo manager is not initialized.");
     return;
   }
-
-  auto progress_cb = create_progress_callback(callback, data);
-
   try {
-    std::list<zypp::RepoInfo> zypp_repos = repo_manager->knownRepositories();
-    for (auto iter = zypp_repos.begin(); iter != zypp_repos.end(); ++iter) {
-      printf("refreshing repo %s\n", iter->alias().c_str());
-      repo_manager->refreshMetadata(*iter, zypp::RepoManager::RawMetadataRefreshPolicy::RefreshForced, progress_cb);
+    zypp::RepoInfo zypp_repo = repo_manager->getRepo(alias);
+    if (zypp_repo == zypp::RepoInfo::noRepo) {
+      status->state = status->STATE_FAILED;
+      status->error = format_alloc("Cannot refresh repo with alias %s. Repo not found.", alias);
+      return;
     }
+
+    repo_manager->refreshMetadata(
+          zypp_repo, zypp::RepoManager::RawMetadataRefreshPolicy::RefreshForced);
     status->state = status->STATE_SUCCEED;
     status->error = NULL;
   } catch (zypp::Exception &excpt) {

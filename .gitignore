@@ -4,3 +4,7 @@
 main
 .vscode
 /html/
+# compilatation instruction for clangd. As it is generated  with full path it does not make sense to have it in git
+compile_commands.json
+# clangd cache
+/.cache

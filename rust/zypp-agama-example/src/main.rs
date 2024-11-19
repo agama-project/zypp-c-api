@@ -1,4 +1,5 @@
 use std::env;
+use zypp_agama::refresh_repository;
 
 fn main() {
     println!("Usage: main [ROOT]");
@@ -19,5 +20,11 @@ fn main() {
     let repos = zypp_agama::list_repositories();
     for repo in repos {
         println!("- Repo {} with url {}", repo.user_name, repo.url);
+        println!("Refreshing...");
+        let result = refresh_repository(&repo.alias);
+        if let Err(error) = result {
+            println!("Failed to refresh repo {}: {}", repo.user_name, error);
+            return;
+        };
     }
 }

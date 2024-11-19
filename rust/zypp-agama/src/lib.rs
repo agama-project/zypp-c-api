@@ -109,6 +109,16 @@ pub fn list_repositories() -> Vec<Repository> {
     res
 }
 
+pub fn refresh_repository(alias: &str) -> Result<(), ZyppError> {
+    unsafe {
+        let mut status: Status = Status { state: Status_STATE_STATE_SUCCEED, error: null_mut() };
+        let status_ptr = &mut status as *mut _ as *mut Status;
+        let c_alias = CString::new(alias).unwrap();
+        zypp_agama_sys::refresh_repository(c_alias.as_ptr(), status_ptr);
+        return status_to_result_void(status);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
