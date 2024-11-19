@@ -7,15 +7,15 @@
 extern "C" {
 #endif
 struct Repository {
-  char *url;
-  char *alias;
-  char *userName;
+  char *url;        // owned
+  char *alias;      // owned
+  char *userName;   // owned
 };
 
 struct RepositoryList {
   const unsigned size;
   // dynamic array with given size
-  struct Repository *repos;
+  struct Repository *repos; // owned, *size* items
 };
 
 // status struct to pass and obtain from calls that can fail.
@@ -27,7 +27,7 @@ struct Status {
     STATE_FAILED,
   } state;
   // detailed user error what happens. Only defined when not succeed
-  char *error;
+  char *error; // owned
 };
 void free_status(struct Status s);
 
