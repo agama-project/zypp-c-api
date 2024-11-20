@@ -21,6 +21,7 @@ fi
 
 # Required packages
 $SUDO zypper --non-interactive install \
+  doxygen \
   gcc \
   gcc-c++ \
   make \

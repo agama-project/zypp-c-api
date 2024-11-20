@@ -116,9 +116,10 @@ void free_repository_list(struct RepositoryList *list) {
   free(list->repos);
 }
 
-void free_status(struct Status status) {
-  if (status.error != NULL) {
-    free(status.error);
+void free_status(struct Status *status) {
+  if (status->error != NULL) {
+    free(status->error);
+    status->error = NULL;
   }
 }
 

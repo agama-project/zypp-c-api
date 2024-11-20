@@ -34,7 +34,7 @@ struct Status {
   /// detailed user error what happens. Only defined when not succeed
   char *error; ///< owned
 };
-void free_status(struct Status s);
+void free_status(struct Status *s);
 
 /// Progress reporting callback used by methods that takes longer.
 /// @param text  text for user describing what is happening now

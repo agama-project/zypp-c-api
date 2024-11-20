@@ -1,8 +1,67 @@
 use std::{
-    error::Error, ffi::{CStr, CString}, fmt, os::raw::{c_char, c_uint, c_void}, ptr::null_mut
+    ffi::CString, os::raw::{c_char, c_uint, c_void}, ptr::null_mut
 };
 
-use zypp_agama_sys::{free_status, ProgressCallback, Status, Status_STATE_STATE_SUCCEED};
+use zypp_agama_sys::{set_zypp_download_callbacks, DownloadProgressCallbacks, ProgressCallback, Status, Status_STATE_STATE_SUCCEED};
+
+pub mod errors;
+pub use errors::ZyppError;
+
+mod helpers;
+use helpers::string_from_ptr;
+// TODO: split file
+
+pub enum ProblemResponse {
+    RETRY,
+    ABORT,
+    IGNORE,
+}
+
+// generic trait to 
+pub trait DownloadProgress {
+    // callback when download start
+    fn start(&self, _url: &str, _localfile: &str) {}
+    // callback when download is in progress
+    fn progress(&self, _value: i32, _url: &str, _bps_avg: f64, _bps_current: f64) -> bool {
+        true
+    }
+    // callback when problem occurs
+    fn problem(&self, _url: &str, _error_id: i32, _description: &str) -> ProblemResponse {
+        ProblemResponse::ABORT
+    }
+    // callback when download finishes either successfully or with error
+    fn finish(&self, _url: &str, _error_id: i32, _reason: &str) {}
+}
+
+pub struct EmptyDownloadProgress;
+impl DownloadProgress for EmptyDownloadProgress {}
+
+unsafe extern "C" fn download_callback_start(url: *const c_char, localfile: *const c_char, user_data: *mut c_void) {
+    let handler = user_data as *mut _ as *mut Box<dyn DownloadProgress>;
+    let r_handler: Box<Box<dyn DownloadProgress>> = Box::from_raw(handler);
+    r_handler.start(&string_from_ptr(url), &string_from_ptr(localfile));
+    // leak box pointer as it will be needed later in other callbacks and destructed properly at the end
+    Box::leak(r_handler);
+}
+
+pub fn set_download_callbacks(callbacks: impl DownloadProgress) {
+    let box_callbacks = Box::new(callbacks);
+    unsafe {
+        // we need double box to ensure that fat pointer caused by dyn is enclused to thin pointer
+        // maybe there is better way?
+        let double_box = Box::new(box_callbacks);
+        let user_data = Box::into_raw(double_box);
+        let c_data = user_data as *mut c_void;
+        let c_callbacks = DownloadProgressCallbacks {
+            start: Some(download_callback_start),
+            progress: None,
+            problem: None,
+            finish: None,
+            user_data: c_data,
+        };
+        set_zypp_download_callbacks(c_callbacks);
+    }
+}
 
 pub struct Repository {
     pub url: String,
@@ -30,38 +89,8 @@ where
     Some(progress_callback::<F>)
 }
 
-#[derive(Debug)]
-pub struct ZyppError {
-    details: String
-}
 
-impl ZyppError {
-    fn new(msg: &str) -> ZyppError {
-        ZyppError{details: msg.to_string()}
-    }
-}
 
-impl fmt::Display for ZyppError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}",self.details)
-    }
-}
-
-impl Error for ZyppError {
-    fn description(&self) -> &str {
-        &self.details
-    }
-}
-
-unsafe fn status_to_result_void(status: Status) -> Result<(), ZyppError> {
-    let res = if status.state == Status_STATE_STATE_SUCCEED {
-        Ok(())
-    } else {
-        Err(ZyppError::new(string_from_ptr(status.error).as_str()))
-    };
-    free_status(status);
-    return res;
-} 
 
 // TODO: use result
 pub fn init_target<F>(root: &str, progress: F) -> Result<(), ZyppError>
@@ -75,13 +104,10 @@ where
         let mut status: Status = Status { state: Status_STATE_STATE_SUCCEED, error: null_mut() };
         let status_ptr = &mut status as *mut _ as *mut Status;
         zypp_agama_sys::init_target(c_root.as_ptr(), status_ptr, cb, &mut closure as *mut _ as *mut c_void);
-        return status_to_result_void(status);
+        return helpers::status_to_result_void(status);
     }
 }
 
-unsafe fn string_from_ptr(c_ptr: *const i8) -> String {
-    String::from_utf8_lossy(CStr::from_ptr(c_ptr).to_bytes()).into_owned()
-}
 
 // TODO: use result
 pub fn list_repositories() -> Vec<Repository> {
@@ -115,7 +141,7 @@ pub fn refresh_repository(alias: &str) -> Result<(), ZyppError> {
         let status_ptr = &mut status as *mut _ as *mut Status;
         let c_alias = CString::new(alias).unwrap();
         zypp_agama_sys::refresh_repository(c_alias.as_ptr(), status_ptr);
-        return status_to_result_void(status);
+        return helpers::status_to_result_void(status);
     }
 }
 

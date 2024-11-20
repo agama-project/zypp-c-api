@@ -57,9 +57,38 @@ pub type ZyppDownloadFinishCallback = ::std::option::Option<
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct DownloadProgressCallbacks {
+    pub start: ZyppDownloadStartCallback,
+    pub progress: ZyppDownloadProgressCallback,
+    pub problem: ZyppDownloadProblemCallback,
+    pub finish: ZyppDownloadFinishCallback,
+    pub user_data: *mut ::std::os::raw::c_void,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of DownloadProgressCallbacks"]
+        [::std::mem::size_of::<DownloadProgressCallbacks>() - 40usize];
+    ["Alignment of DownloadProgressCallbacks"]
+        [::std::mem::align_of::<DownloadProgressCallbacks>() - 8usize];
+    ["Offset of field: DownloadProgressCallbacks::start"]
+        [::std::mem::offset_of!(DownloadProgressCallbacks, start) - 0usize];
+    ["Offset of field: DownloadProgressCallbacks::progress"]
+        [::std::mem::offset_of!(DownloadProgressCallbacks, progress) - 8usize];
+    ["Offset of field: DownloadProgressCallbacks::problem"]
+        [::std::mem::offset_of!(DownloadProgressCallbacks, problem) - 16usize];
+    ["Offset of field: DownloadProgressCallbacks::finish"]
+        [::std::mem::offset_of!(DownloadProgressCallbacks, finish) - 24usize];
+    ["Offset of field: DownloadProgressCallbacks::user_data"]
+        [::std::mem::offset_of!(DownloadProgressCallbacks, user_data) - 32usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct Repository {
+    #[doc = "< owned"]
     pub url: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
     pub alias: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
     pub userName: *mut ::std::os::raw::c_char,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
@@ -75,6 +104,7 @@ const _: () = {
 #[derive(Debug, Copy, Clone)]
 pub struct RepositoryList {
     pub size: ::std::os::raw::c_uint,
+    #[doc = "< owned, *size* items"]
     pub repos: *mut Repository,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
@@ -86,10 +116,12 @@ const _: () = {
     ["Offset of field: RepositoryList::repos"]
         [::std::mem::offset_of!(RepositoryList, repos) - 8usize];
 };
+#[doc = " status struct to pass and obtain from calls that can fail.\n After usage free with \\ref free_status function.\n\n Most functions act as *constructors* for this, taking a pointer\n to it as an output parameter, disregarding the struct current contents\n and filling it in. Thus, if you reuse a `Status` without \\ref free_status\n in between, `error` will leak."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Status {
     pub state: Status_STATE,
+    #[doc = "< owned"]
     pub error: *mut ::std::os::raw::c_char,
 }
 pub const Status_STATE_STATE_SUCCEED: Status_STATE = 0;
@@ -102,6 +134,7 @@ const _: () = {
     ["Offset of field: Status::state"][::std::mem::offset_of!(Status, state) - 0usize];
     ["Offset of field: Status::error"][::std::mem::offset_of!(Status, error) - 8usize];
 };
+#[doc = " Progress reporting callback used by methods that takes longer.\n @param text  text for user describing what is happening now\n @param stage current stage number starting with 0\n @param total count of stages. It should not change during single call of method.\n @param user_data is never touched by method and is used only to pass local data for callback\n @todo Do we want to support response for callback that allows early exit of execution?"]
 pub type ProgressCallback = ::std::option::Option<
     unsafe extern "C" fn(
         text: *const ::std::os::raw::c_char,
@@ -115,22 +148,19 @@ extern "C" {
         progress: ZyppProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
-    pub fn set_zypp_download_callbacks(
-        start: ZyppDownloadStartCallback,
-        progress: ZyppDownloadProgressCallback,
-        problem: ZyppDownloadProblemCallback,
-        finish: ZyppDownloadFinishCallback,
-        user_data: *mut ::std::os::raw::c_void,
-    );
-    pub fn free_status(s: Status);
+    pub fn set_zypp_download_callbacks(callbacks: DownloadProgressCallbacks);
+    pub fn free_status(s: *mut Status);
+    #[doc = " Initialize Zypp target (where to install packages to)\n @param root\n @param[out] status\n @param progress\n @param user_data"]
     pub fn init_target(
         root: *const ::std::os::raw::c_char,
         status: *mut Status,
         progress: ProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
+    #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory"]
     pub fn list_repositories() -> RepositoryList;
     pub fn free_repository_list(repo_list: *mut RepositoryList);
+    #[doc = "\n @param alias alias of repository to refresh\n @param[out] status (will overwrite existing contents)"]
     pub fn refresh_repository(alias: *const ::std::os::raw::c_char, status: *mut Status);
     pub fn free_zypp();
 }

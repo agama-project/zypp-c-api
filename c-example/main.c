@@ -33,9 +33,13 @@ void download_progress_finish(const char *url, int error, const char *reason, vo
 int main(int argc, char *argv[]) {
   int result = 0;
   struct Status status;
+  struct DownloadProgressCallbacks download_callbacks = {
+    download_progress_start, download_progress_progress, download_progress_problem, download_progress_finish, NULL
+  };
+
   set_zypp_progress_callback(zypp_progress, NULL);
-  set_zypp_download_callbacks(download_progress_start, download_progress_progress, download_progress_problem,
-                              download_progress_finish, NULL);
+  set_zypp_download_callbacks(download_callbacks);
+
   char * root = "/";
   if (argc > 1)
     root = argv[1];
@@ -47,7 +51,7 @@ int main(int argc, char *argv[]) {
     result = 1;
     goto norepo;
   }
-  free_status(status);
+  free_status(&status);
 
   struct RepositoryList list = list_repositories();
   for (unsigned i = 0; i < list.size; ++i) {
@@ -57,23 +61,16 @@ int main(int argc, char *argv[]) {
     refresh_repository(repo->alias, &status);
     if (status.state != STATE_SUCCEED) {
       printf("refresh ERROR!: %s\n", status.error);
-      free_status(status);
+      free_status(&status);
       goto repoerr;
-    }
-    free_status(status);
+   }
+   free_status(&status);
   }
-  free_repository_list(&list);
 
-  // refresh all repos to get some zypp progress
-  printf("Refreshing repos:\n");
-  refresh_repositories(&status, zypp_progress, NULL);
-  if (status.state != STATE_SUCCEED) {
-    printf("refresh ERROR!: %s\n", status.error);
-  }
 repoerr:
   free_repository_list(&list);
 norepo:
-  free_status(status);
+  free_status(&status);
   free_zypp();
   return result;
 }
