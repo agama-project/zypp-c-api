@@ -30,14 +30,22 @@ void download_progress_finish(const char *url, int error, const char *reason, vo
   printf("Download of %s finished with %s\n", url, reason);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   struct Status status;
   set_zypp_progress_callback(zypp_progress, NULL);
   set_zypp_download_callbacks(download_progress_start, download_progress_progress, download_progress_problem,
                               download_progress_finish, NULL);
+  char * root = "/";
+  if (argc > 1)
+    root = argv[1];
   printf("List of repos:\n");
   const char *prefix = "Loading '/'";
-  init_target("/", &status, progress, (void *)prefix);
+  init_target(root, &status, progress, (void *)prefix);
+  if (status.state != STATE_SUCCEED) {
+    printf("init ERROR!: %s\n", status.error);
+  }
+  free_status(status);
+
   struct RepositoryList list = list_repositories();
   for (unsigned i = 0; i < list.size; ++i) {
     struct Repository *repo = list.repos + i;
@@ -46,6 +54,7 @@ int main() {
   free_repository_list(&list);
 
   // refresh all repos to get some zypp progress
+  printf("Refreshing repos:\n");
   refresh_repositories(&status, zypp_progress, NULL);
   if (status.state != STATE_SUCCEED) {
     printf("refresh ERROR!: %s\n", status.error);
