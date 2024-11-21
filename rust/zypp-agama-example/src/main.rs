@@ -1,5 +1,16 @@
 use std::env;
-use zypp_agama::refresh_repository;
+use zypp_agama::{refresh_repository, DownloadProgress};
+
+struct ExampleProgress{
+
+}
+
+impl DownloadProgress for ExampleProgress {
+    fn progress(&self, value: i32, url: &str, _bps_avg: f64, _bps_current: f64) -> bool {
+        println!("Donwloading {} - {}%", url, value);
+        true
+    }
+}
 
 fn main() {
     println!("Usage: main [ROOT]");
@@ -18,10 +29,11 @@ fn main() {
         return;
     };
     let repos = zypp_agama::list_repositories();
+    let progress = ExampleProgress{};
     for repo in repos {
         println!("- Repo {} with url {}", repo.user_name, repo.url);
         println!("Refreshing...");
-        let result = refresh_repository(&repo.alias);
+        let result = refresh_repository(&repo.alias, &progress);
         if let Err(error) = result {
             println!("Failed to refresh repo {}: {}", repo.user_name, error);
             return;

@@ -59,27 +59,36 @@ pub type ZyppDownloadFinishCallback = ::std::option::Option<
 #[derive(Debug, Copy, Clone)]
 pub struct DownloadProgressCallbacks {
     pub start: ZyppDownloadStartCallback,
+    pub start_data: *mut ::std::os::raw::c_void,
     pub progress: ZyppDownloadProgressCallback,
+    pub progress_data: *mut ::std::os::raw::c_void,
     pub problem: ZyppDownloadProblemCallback,
+    pub problem_data: *mut ::std::os::raw::c_void,
     pub finish: ZyppDownloadFinishCallback,
-    pub user_data: *mut ::std::os::raw::c_void,
+    pub finish_data: *mut ::std::os::raw::c_void,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
     ["Size of DownloadProgressCallbacks"]
-        [::std::mem::size_of::<DownloadProgressCallbacks>() - 40usize];
+        [::std::mem::size_of::<DownloadProgressCallbacks>() - 64usize];
     ["Alignment of DownloadProgressCallbacks"]
         [::std::mem::align_of::<DownloadProgressCallbacks>() - 8usize];
     ["Offset of field: DownloadProgressCallbacks::start"]
         [::std::mem::offset_of!(DownloadProgressCallbacks, start) - 0usize];
+    ["Offset of field: DownloadProgressCallbacks::start_data"]
+        [::std::mem::offset_of!(DownloadProgressCallbacks, start_data) - 8usize];
     ["Offset of field: DownloadProgressCallbacks::progress"]
-        [::std::mem::offset_of!(DownloadProgressCallbacks, progress) - 8usize];
+        [::std::mem::offset_of!(DownloadProgressCallbacks, progress) - 16usize];
+    ["Offset of field: DownloadProgressCallbacks::progress_data"]
+        [::std::mem::offset_of!(DownloadProgressCallbacks, progress_data) - 24usize];
     ["Offset of field: DownloadProgressCallbacks::problem"]
-        [::std::mem::offset_of!(DownloadProgressCallbacks, problem) - 16usize];
+        [::std::mem::offset_of!(DownloadProgressCallbacks, problem) - 32usize];
+    ["Offset of field: DownloadProgressCallbacks::problem_data"]
+        [::std::mem::offset_of!(DownloadProgressCallbacks, problem_data) - 40usize];
     ["Offset of field: DownloadProgressCallbacks::finish"]
-        [::std::mem::offset_of!(DownloadProgressCallbacks, finish) - 24usize];
-    ["Offset of field: DownloadProgressCallbacks::user_data"]
-        [::std::mem::offset_of!(DownloadProgressCallbacks, user_data) - 32usize];
+        [::std::mem::offset_of!(DownloadProgressCallbacks, finish) - 48usize];
+    ["Offset of field: DownloadProgressCallbacks::finish_data"]
+        [::std::mem::offset_of!(DownloadProgressCallbacks, finish_data) - 56usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -148,7 +157,6 @@ extern "C" {
         progress: ZyppProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
-    pub fn set_zypp_download_callbacks(callbacks: DownloadProgressCallbacks);
     pub fn free_status(s: *mut Status);
     #[doc = " Initialize Zypp target (where to install packages to)\n @param root\n @param[out] status\n @param progress\n @param user_data"]
     pub fn init_target(
@@ -160,7 +168,11 @@ extern "C" {
     #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory"]
     pub fn list_repositories() -> RepositoryList;
     pub fn free_repository_list(repo_list: *mut RepositoryList);
-    #[doc = "\n @param alias alias of repository to refresh\n @param[out] status (will overwrite existing contents)"]
-    pub fn refresh_repository(alias: *const ::std::os::raw::c_char, status: *mut Status);
+    #[doc = "\n @param alias alias of repository to refresh\n @param[out] status (will overwrite existing contents)\n @param callbacks pointer to struct with callbacks or NULL if no progress is needed"]
+    pub fn refresh_repository(
+        alias: *const ::std::os::raw::c_char,
+        status: *mut Status,
+        callbacks: *mut DownloadProgressCallbacks,
+    );
     pub fn free_zypp();
 }
