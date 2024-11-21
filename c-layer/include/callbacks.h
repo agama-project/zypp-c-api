@@ -38,16 +38,17 @@ typedef void (*ZyppDownloadFinishCallback)(const char* url, int error, const cha
 // 2. progress to see how it goes
 // 3. problem to react when something wrong happen and how to behave
 // 4. finish when download finishes
-// NOTE: user_data is shared between calls.
+// NOTE: user_data is separated for each call.
 struct DownloadProgressCallbacks {
   ZyppDownloadStartCallback start;
+  void* start_data;
   ZyppDownloadProgressCallback progress;
+  void* progress_data;
   ZyppDownloadProblemCallback problem;
+  void*  problem_data;
   ZyppDownloadFinishCallback finish;
-  void* user_data;
+  void* finish_data;
 };
-void set_zypp_download_callbacks(struct DownloadProgressCallbacks callbacks);
-
 #ifdef __cplusplus
 }
 #endif

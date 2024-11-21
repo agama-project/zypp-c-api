@@ -59,7 +59,8 @@ void free_repository_list(struct RepositoryList *repo_list);
 ///
 /// @param alias alias of repository to refresh
 /// @param[out] status (will overwrite existing contents)
-void refresh_repository(const char* alias, struct Status* status);
+/// @param callbacks pointer to struct with callbacks or NULL if no progress is needed
+void refresh_repository(const char* alias, struct Status* status, struct DownloadProgressCallbacks *callbacks);
 
 // the last call that will free all pointers to zypp holded by agama
 void free_zypp();

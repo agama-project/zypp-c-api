@@ -123,7 +123,7 @@ void free_status(struct Status *status) {
   }
 }
 
-void refresh_repository(const char* alias, struct Status *status) {
+void refresh_repository(const char* alias, struct Status *status, struct DownloadProgressCallbacks *callbacks) {
   if (repo_manager == NULL) {
     status->state = status->STATE_FAILED;
     status->error = strdup("Internal Error: Repo manager is not initialized.");
@@ -137,13 +137,16 @@ void refresh_repository(const char* alias, struct Status *status) {
       return;
     }
 
+    set_zypp_download_callbacks(callbacks);
     repo_manager->refreshMetadata(
           zypp_repo, zypp::RepoManager::RawMetadataRefreshPolicy::RefreshForced);
     status->state = status->STATE_SUCCEED;
     status->error = NULL;
+    unset_zypp_download_callbacks();
   } catch (zypp::Exception &excpt) {
     status->state = status->STATE_FAILED;
     status->error = strdup(excpt.asUserString().c_str());
+    unset_zypp_download_callbacks(); // TODO: we can add C++ final action helper if it is more common
   }
 }
 

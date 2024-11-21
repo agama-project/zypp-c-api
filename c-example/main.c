@@ -34,11 +34,13 @@ int main(int argc, char *argv[]) {
   int result = 0;
   struct Status status;
   struct DownloadProgressCallbacks download_callbacks = {
-    download_progress_start, download_progress_progress, download_progress_problem, download_progress_finish, NULL
+    download_progress_start, NULL,
+    download_progress_progress, NULL,
+    download_progress_problem, NULL,
+    download_progress_finish, NULL
   };
 
   set_zypp_progress_callback(zypp_progress, NULL);
-  set_zypp_download_callbacks(download_callbacks);
 
   char * root = "/";
   if (argc > 1)
@@ -58,7 +60,7 @@ int main(int argc, char *argv[]) {
     struct Repository *repo = list.repos + i;
     printf("repo %i: %s\n", i, repo->userName);
     printf("refreshing...");
-    refresh_repository(repo->alias, &status);
+    refresh_repository(repo->alias, &status, &download_callbacks);
     if (status.state != STATE_SUCCEED) {
       printf("refresh ERROR!: %s\n", status.error);
       free_status(&status);
