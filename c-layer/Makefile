@@ -1,6 +1,6 @@
 AR=ar
 CXX=g++
-CXXFLAGS=-I./include -I./internal -Izypp -Wall -std=c++14 -lzypp -fPIE
+CXXFLAGS=-Wall -I./include -I./internal -Izypp -Wall -std=c++14 -lzypp -fPIE
 DEPS = include/lib.h include/callbacks.h internal/callbacks.hxx
 OBJ = lib.o callbacks.o
 

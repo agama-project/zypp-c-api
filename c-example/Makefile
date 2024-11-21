@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -I. -I../c-layer/include -Wall -lzypp -lstdc++
+CFLAGS= -Wall -I. -I../c-layer/include -Wall -lzypp -lstdc++
 OBJ = main.o
 DEPS = ../c-layer/include/lib.h ../c-layer/include/callbacks.h
 

@@ -27,7 +27,7 @@ enum PROBLEM_RESPONSE download_progress_problem(const char *url, int error, cons
 }
 
 void download_progress_finish(const char *url, int error, const char *reason, void *user_data) {
-  printf("Download of %s finished with %s\n", url, reason);
+  printf("Download of %s finished with status %d (%s)\n", url, error, reason);
 }
 
 int main(int argc, char *argv[]) {
