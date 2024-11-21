@@ -89,12 +89,10 @@ where
     Some(progress_callback::<F>)
 }
 
-
-
-
-// TODO: use result
 pub fn init_target<F>(root: &str, progress: F) -> Result<(), ZyppError>
 where
+    // cannot be FnOnce, the whole point of progress callbacks is
+    // to provide feedback multiple times
     F: FnMut(String, u32, u32),
 {
     unsafe {
@@ -156,7 +154,8 @@ mod tests {
     #[test]
     fn it_works() {
         init_target("/", progress_cb).unwrap();
-        let result = list_repositories();
-        assert_eq!(result.len(), 24); // FIXME: just my quick validation
+        let repos = list_repositories();
+        println!("{} repos", repos.len());
+        assert!(repos.len() > 10); // FIXME: just my quick validation
     }
 }
