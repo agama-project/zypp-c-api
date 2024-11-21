@@ -20,3 +20,4 @@ Repository contains three directories:
 - https://doc.rust-lang.org/nomicon/ffi.html
 - https://adventures.michaelfbryan.com/posts/rust-closures-in-ffi/
 - https://www.khoury.northeastern.edu/home/lth/larceny/notes/note7-ffi.html
+- https://cliffle.com/blog/not-thread-safe/ ( interesting part how to ensure in rust that some data is not thread safe )
