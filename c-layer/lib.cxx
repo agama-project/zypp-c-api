@@ -16,7 +16,7 @@ extern "C" {
 static zypp::ZYpp::Ptr zypp_pointer = NULL;
 static zypp::RepoManager *repo_manager = NULL;
 
-void free_zypp() {
+void free_zypp() noexcept {
   zypp_pointer =
       NULL; // shared ptr assignment operator will free original pointer
   delete (repo_manager);
@@ -73,7 +73,7 @@ static zypp::ZYpp::Ptr zypp_ptr() {
   return NULL;
 }
 
-void init_target(const char *root, struct Status *status, ProgressCallback progress, void *user_data) {
+void init_target(const char *root, struct Status *status, ProgressCallback progress, void *user_data) noexcept {
   const std::string root_str(root);
 
   try {
@@ -109,21 +109,21 @@ void free_repository(struct Repository *repo) {
   free(repo->userName);
 }
 
-void free_repository_list(struct RepositoryList *list) {
+void free_repository_list(struct RepositoryList *list) noexcept {
   for (unsigned i = 0; i < list->size; ++i) {
     free_repository(list->repos + i);
   }
   free(list->repos);
 }
 
-void free_status(struct Status *status) {
+void free_status(struct Status *status) noexcept {
   if (status->error != NULL) {
     free(status->error);
     status->error = NULL;
   }
 }
 
-void refresh_repository(const char* alias, struct Status *status, struct DownloadProgressCallbacks *callbacks) {
+void refresh_repository(const char* alias, struct Status *status, struct DownloadProgressCallbacks *callbacks) noexcept {
   if (repo_manager == NULL) {
     status->state = status->STATE_FAILED;
     status->error = strdup("Internal Error: Repo manager is not initialized.");
@@ -150,7 +150,7 @@ void refresh_repository(const char* alias, struct Status *status, struct Downloa
   }
 }
 
-struct RepositoryList list_repositories() {
+struct RepositoryList list_repositories() noexcept {
   if (repo_manager == NULL) {
     // TODO: error reporting?
     return {0, NULL};

@@ -6,6 +6,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#ifndef __cplusplus
+#define noexcept ;
+#endif
 struct Repository {
   char *url;        ///< owned
   char *alias;      ///< owned
@@ -34,7 +37,7 @@ struct Status {
   /// detailed user error what happens. Only defined when not succeed
   char *error; ///< owned
 };
-void free_status(struct Status *s);
+void free_status(struct Status *s) noexcept;
 
 /// Progress reporting callback used by methods that takes longer.
 /// @param text  text for user describing what is happening now
@@ -48,22 +51,22 @@ typedef void (*ProgressCallback)(const char *text, unsigned stage, unsigned tota
 /// @param[out] status
 /// @param progress
 /// @param user_data
-void init_target(const char *root, struct Status *status, ProgressCallback progress, void *user_data);
+void init_target(const char *root, struct Status *status, ProgressCallback progress, void *user_data) noexcept;
 
 /// repository array in list.
 /// when no longer needed, use \ref free_repository_list to release memory
-struct RepositoryList list_repositories();
+struct RepositoryList list_repositories() noexcept;
 
-void free_repository_list(struct RepositoryList *repo_list);
+void free_repository_list(struct RepositoryList *repo_list) noexcept;
 
 ///
 /// @param alias alias of repository to refresh
 /// @param[out] status (will overwrite existing contents)
 /// @param callbacks pointer to struct with callbacks or NULL if no progress is needed
-void refresh_repository(const char* alias, struct Status* status, struct DownloadProgressCallbacks *callbacks);
+void refresh_repository(const char* alias, struct Status* status, struct DownloadProgressCallbacks *callbacks) noexcept;
 
 // the last call that will free all pointers to zypp holded by agama
-void free_zypp();
+void free_zypp() noexcept;
 
 #ifdef __cplusplus
 }
