@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 zypp-agama = { path="../zypp-agama" }
+indicatif= "0.17.8"

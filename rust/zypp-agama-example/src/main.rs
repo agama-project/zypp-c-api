@@ -1,14 +1,47 @@
-use std::env;
+use std::{cell::RefCell, env};
 use zypp_agama::{refresh_repository, DownloadProgress};
 
-struct ExampleProgress{
+struct ExampleProgress {
+    // We need to use RefCell here because libzypp is limited to single thread
+    // and trait for progress cannot use `&mut self` as it passed multiple callbacks
+    // at once to libzypp and `&mut` is exclusive.
+    progress_bar: RefCell<indicatif::ProgressBar>,
+}
 
+impl ExampleProgress {
+    fn new() -> Self {
+        let bar = indicatif::ProgressBar::hidden();
+        Self {
+            progress_bar: RefCell::new(bar)
+        }
+    }
 }
 
 impl DownloadProgress for ExampleProgress {
-    fn progress(&self, value: i32, url: &str, _bps_avg: f64, _bps_current: f64) -> bool {
-        println!("Donwloading {} - {}%", url, value);
+    fn start(&self, url: &str, localfile: &str) {
+        self.progress_bar.replace(indicatif::ProgressBar::new(100));
+        let bar = self.progress_bar.borrow_mut();
+        bar.set_message(format!("Downloading {}", url));
+        bar.println(format!("local path: {}", localfile));
+    }
+
+    fn progress(&self, value: i32, _url: &str, _bps_avg: f64, _bps_current: f64) -> bool {
+        // unwrap is ok here as we know that libzypp send percentage in value..do not ask me why it uses int instead of unsigned
+        self.progress_bar.borrow_mut().set_position(value.try_into().unwrap());
         true
+    }
+
+    // skip definition of problem as we are ok with default action.
+
+    fn finish(&self, url: &str, error_id: i32, reason: &str) {
+        let bar = self.progress_bar.borrow_mut();
+        // well, by checking libzypp sources I know that 0 means no error :) C API do not remap yeat enum for it.
+        if error_id == 0 {
+            bar.println(format!("{} download.", url));
+        } else {
+            bar.println(format!("{} failed to download due to: {}.", url, reason));
+        }
+        bar.finish_and_clear();
     }
 }
 
@@ -29,7 +62,7 @@ fn main() {
         return;
     };
     let repos = zypp_agama::list_repositories();
-    let progress = ExampleProgress{};
+    let progress = ExampleProgress::new();
     for repo in repos {
         println!("- Repo {} with url {}", repo.user_name, repo.url);
         println!("Refreshing...");
@@ -38,5 +71,6 @@ fn main() {
             println!("Failed to refresh repo {}: {}", repo.user_name, error);
             return;
         };
+        println!("Refresh done.")
     }
 }
