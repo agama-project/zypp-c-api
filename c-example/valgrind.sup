@@ -1,0 +1,28 @@
+{
+   libzypp_itself
+   Memcheck:Leak
+   match-leak-kinds: all
+   ...
+   obj:/usr/lib64/libzypp.so.*
+}
+{
+   rpm_lib
+   Memcheck:Leak
+   match-leak-kinds: all
+   ...
+   obj:/usr/lib64/librpm.so.*
+}
+{
+   glib
+   Memcheck:Leak
+   match-leak-kinds: all
+   ...
+   obj:/usr/lib64/libglib-*
+}
+{
+   lua
+   Memcheck:Leak
+   match-leak-kinds: all
+   ...
+   obj:/usr/lib64/liblua*
+}
