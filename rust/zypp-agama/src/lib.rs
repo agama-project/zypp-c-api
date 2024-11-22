@@ -2,156 +2,16 @@ use std::{
     ffi::CString, os::raw::{c_char, c_int, c_uint, c_void}, ptr::null_mut
 };
 
-use zypp_agama_sys::{ DownloadProgressCallbacks, ProgressCallback, Status, Status_STATE_STATE_SUCCEED, ZyppDownloadFinishCallback, ZyppDownloadProblemCallback, ZyppDownloadProgressCallback, ZyppDownloadStartCallback, PROBLEM_RESPONSE, PROBLEM_RESPONSE_PROBLEM_ABORT, PROBLEM_RESPONSE_PROBLEM_IGNORE, PROBLEM_RESPONSE_PROBLEM_RETRY};
+pub use callbacks::DownloadProgress;
+use zypp_agama_sys::{ ProgressCallback, ProgressData, Status, Status_STATE_STATE_SUCCEED, ZyppProgressCallback};
 
 pub mod errors;
 pub use errors::ZyppError;
 
 mod helpers;
 use helpers::string_from_ptr;
-// TODO: split file
 
-pub enum ProblemResponse {
-    RETRY,
-    ABORT,
-    IGNORE,
-}
-
-// generic trait to 
-pub trait DownloadProgress {
-    // callback when download start
-    fn start(&self, _url: &str, _localfile: &str) {}
-    // callback when download is in progress
-    fn progress(&self, _value: i32, _url: &str, _bps_avg: f64, _bps_current: f64) -> bool {
-        true
-    }
-    // callback when problem occurs
-    fn problem(&self, _url: &str, _error_id: i32, _description: &str) -> ProblemResponse {
-        ProblemResponse::ABORT
-    }
-    // callback when download finishes either successfully or with error
-    fn finish(&self, _url: &str, _error_id: i32, _reason: &str) {}
-}
-
-// Default progress that do nothing
-pub struct EmptyDownloadProgress;
-impl DownloadProgress for EmptyDownloadProgress {}
-
-unsafe extern "C" fn download_progress_start<F>(
-    url: *const c_char,
-    localfile: *const c_char,
-    user_data: *mut c_void,
-) where
-    F: FnMut(String, String),
-{
-    let user_data = &mut *(user_data as *mut F);
-    user_data(string_from_ptr(url), string_from_ptr(localfile));
-}
-
-fn get_download_progress_start<F>(_closure: &F) -> ZyppDownloadStartCallback
-where
-    F: FnMut(String, String),
-{
-    Some(download_progress_start::<F>)
-}
-
-unsafe extern "C" fn download_progress_progress<F>(
-    value: c_int,
-    url: *const c_char,
-    bps_avg: f64,
-    bps_current: f64,
-    user_data: *mut c_void,
-) -> c_int
-where
-    F: FnMut(i32, String, f64, f64) -> bool,
-{
-    let user_data = &mut *(user_data as *mut F);
-    let res = user_data(value.into(), string_from_ptr(url), bps_avg, bps_current);
-    // C type boolean
-    if res {
-        1 as c_int
-      } else {
-        0 as c_int
-      }
-}
-
-fn get_download_progress_progress<F>(_closure: &F) -> ZyppDownloadProgressCallback
-where
-F: FnMut(i32, String, f64, f64) -> bool,
-{
-    Some(download_progress_progress::<F>)
-}
-
-unsafe extern "C" fn download_progress_problem<F>(
-    url: *const c_char,
-    error: c_int,
-    description: *const c_char,
-    user_data: *mut c_void,
-) -> PROBLEM_RESPONSE
-where
-    F: FnMut(String, c_int, String) -> ProblemResponse,
-{
-    let user_data = &mut *(user_data as *mut F);
-    let res = user_data(string_from_ptr(url), error.into(), string_from_ptr(description));
-    match res {
-      ProblemResponse::ABORT => PROBLEM_RESPONSE_PROBLEM_ABORT,
-      ProblemResponse::IGNORE => PROBLEM_RESPONSE_PROBLEM_IGNORE,
-      ProblemResponse::RETRY => PROBLEM_RESPONSE_PROBLEM_RETRY,
-    }
-}
-
-fn get_download_progress_problem<F>(_closure: &F) -> ZyppDownloadProblemCallback
-where
-F: FnMut(String, c_int, String) -> ProblemResponse,
-{
-    Some(download_progress_problem::<F>)
-}
-
-unsafe extern "C" fn download_progress_finish<F>(
-    url: *const c_char,
-    error: c_int,
-    reason: *const c_char,
-    user_data: *mut c_void,
-)
-where
-    F: FnMut(String, c_int, String),
-{
-    let user_data = &mut *(user_data as *mut F);
-    user_data(string_from_ptr(url), error.into(), string_from_ptr(reason));    
-}
-
-fn get_download_progress_finish<F>(_closure: &F) -> ZyppDownloadFinishCallback
-where
-F: FnMut(String, c_int, String),
-{
-    Some(download_progress_finish::<F>)
-}
-
-fn with_c_download_callbacks<R, F>(callbacks: &impl DownloadProgress, block: &mut F) -> R
-where 
-    F: FnMut(DownloadProgressCallbacks) -> R
-{
-    let mut start_call = | url: String, localfile: String| callbacks.start(&url, &localfile);
-    let cb_start = get_download_progress_start(&start_call);
-    let mut progress_call = | value, url: String, bps_avg, bps_current| callbacks.progress(value, &url, bps_avg, bps_current);
-    let cb_progress = get_download_progress_progress(&progress_call);
-    let mut problem_call = | url: String, error, description: String| callbacks.problem(&url, error, &description);
-    let cb_problem = get_download_progress_problem(&problem_call);
-    let mut finish_call = | url: String, error, description: String| callbacks.finish(&url, error, &description);
-    let cb_finish = get_download_progress_finish(&finish_call);
-
-    let callbacks = DownloadProgressCallbacks {
-        start: cb_start,
-        start_data: &mut start_call as *mut _ as *mut c_void,
-        progress: cb_progress,
-        progress_data: &mut progress_call as *mut _ as *mut c_void,
-        problem: cb_problem,
-        problem_data: &mut problem_call as *mut _ as *mut c_void,
-        finish: cb_finish,
-        finish_data: &mut finish_call as *mut _ as *mut c_void,
-    };
-    block(callbacks)
-}
+mod callbacks;
 
 pub struct Repository {
     pub url: String,
@@ -160,6 +20,29 @@ pub struct Repository {
 }
 
 // TODO: is there better way how to use type from ProgressCallback binding type?
+unsafe extern "C" fn zypp_progress_callback<F>(
+    zypp_data: ProgressData,
+    user_data: *mut c_void,
+) -> c_int 
+where
+    F: FnMut(i64, String) -> bool,
+{
+    let user_data = &mut *(user_data as *mut F);
+    let res = user_data(zypp_data.value, string_from_ptr(zypp_data.name));
+    if res {
+        1 as c_int
+    } else {
+        0 as c_int
+    }
+}
+
+fn get_zypp_progress_callback<F>(_closure: &F) -> ZyppProgressCallback
+where
+    F: FnMut(i64, String) -> bool,
+{
+    Some(zypp_progress_callback::<F>)
+}
+
 unsafe extern "C" fn progress_callback<F>(
     text: *const c_char,
     stage: c_uint,
@@ -229,7 +112,23 @@ pub fn refresh_repository(alias: &str, progress: &impl DownloadProgress) -> Resu
         let status_ptr = &mut status as *mut _ as *mut Status;
         let c_alias = CString::new(alias).unwrap();
         let mut refresh_fn = |mut callbacks| zypp_agama_sys::refresh_repository(c_alias.as_ptr(), status_ptr, &mut callbacks);
-        with_c_download_callbacks(progress, &mut refresh_fn);
+        callbacks::with_c_download_callbacks(progress, &mut refresh_fn);
+        return helpers::status_to_result_void(status);
+    }
+}
+
+pub fn add_repository<F>(alias: &str, url: &str, progress: F) -> Result<(), ZyppError>
+where
+    F: FnMut(i64, String) -> bool,
+{
+    unsafe {
+        let mut closure = progress;
+        let cb = get_zypp_progress_callback(&closure);
+        let mut status: Status = Status { state: Status_STATE_STATE_SUCCEED, error: null_mut() };
+        let status_ptr = &mut status as *mut _ as *mut Status;
+        let c_alias = CString::new(alias).unwrap();
+        let c_url = CString::new(url).unwrap();
+        zypp_agama_sys::add_repository(c_alias.as_ptr(), c_url.as_ptr(), status_ptr, cb, &mut closure as *mut _ as *mut c_void);
         return helpers::status_to_result_void(status);
     }
 }

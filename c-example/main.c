@@ -40,8 +40,6 @@ int main(int argc, char *argv[]) {
     download_progress_finish, NULL
   };
 
-  set_zypp_progress_callback(zypp_progress, NULL);
-
   char * root = "/";
   if (argc > 1)
     root = argv[1];
@@ -55,19 +53,29 @@ int main(int argc, char *argv[]) {
   }
   free_status(&status);
 
+  printf("Existing repos:");
   struct RepositoryList list = list_repositories();
   for (unsigned i = 0; i < list.size; ++i) {
     struct Repository *repo = list.repos + i;
     printf("repo %i: %s\n", i, repo->userName);
-    printf("refreshing...");
-    refresh_repository(repo->alias, &status, &download_callbacks);
-    if (status.state != STATE_SUCCEED) {
-      printf("refresh ERROR!: %s\n", status.error);
-      free_status(&status);
-      goto repoerr;
-   }
-   free_status(&status);
   }
+
+  printf("\n\n");
+  printf("Adding new repo with Agama Devel\n");
+  add_repository("agama", "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/", &status, zypp_progress, NULL);
+  if (status.state != STATE_SUCCEED) {
+    printf("failed to add repo!: %s\n", status.error);
+    result = 1;
+    goto repoerr;
+  }
+  free_status(&status);
+  printf("Refreshing it");
+  refresh_repository("agama", &status, &download_callbacks);
+  if (status.state != STATE_SUCCEED) {
+    printf("refresh ERROR!: %s\n", status.error);
+    goto repoerr;
+  }
+
 
 repoerr:
   free_repository_list(&list);

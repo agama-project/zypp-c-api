@@ -168,6 +168,14 @@ extern "C" {
     #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory"]
     pub fn list_repositories() -> RepositoryList;
     pub fn free_repository_list(repo_list: *mut RepositoryList);
+    #[doc = " Adds repository to repo manager\n @param alias have to be unique\n @param url can contain repo variables\n @param[out] status (will overwrite existing contents)\n @param callback pointer to function with callback or NULL\n @param user_data"]
+    pub fn add_repository(
+        alias: *const ::std::os::raw::c_char,
+        url: *const ::std::os::raw::c_char,
+        status: *mut Status,
+        callback: ZyppProgressCallback,
+        user_data: *mut ::std::os::raw::c_void,
+    );
     #[doc = "\n @param alias alias of repository to refresh\n @param[out] status (will overwrite existing contents)\n @param callbacks pointer to struct with callbacks or NULL if no progress is needed"]
     pub fn refresh_repository(
         alias: *const ::std::os::raw::c_char,

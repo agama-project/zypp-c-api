@@ -59,6 +59,14 @@ struct RepositoryList list_repositories() noexcept;
 
 void free_repository_list(struct RepositoryList *repo_list) noexcept;
 
+/// Adds repository to repo manager
+/// @param alias have to be unique
+/// @param url can contain repo variables
+/// @param[out] status (will overwrite existing contents)
+/// @param callback pointer to function with callback or NULL
+/// @param user_data
+void add_repository(const char* alias, const char* url, struct Status *status, ZyppProgressCallback callback, void* user_data) noexcept;
+
 ///
 /// @param alias alias of repository to refresh
 /// @param[out] status (will overwrite existing contents)

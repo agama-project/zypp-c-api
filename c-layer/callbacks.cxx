@@ -13,7 +13,6 @@ struct ProgressReceive : zypp::callback::ReceiveReport<zypp::ProgressReport> {
   void set_callback(ZyppProgressCallback callback_, void *user_data_) {
     callback = callback_;
     user_data = user_data_;
-    printf("Callback assigned\n");
   }
 
   // TODO: should we distinguish start/finish? and if so, is enum param to callback enough instead of having three
@@ -26,9 +25,7 @@ struct ProgressReceive : zypp::callback::ReceiveReport<zypp::ProgressReport> {
   }
 
   bool progress(const zypp::ProgressData &task) {
-    printf("progress called\n");
     if (callback != NULL) {
-      printf("own callback defined\n");
       ProgressData data = {task.reportValue(), task.name().c_str()};
       return callback(data, user_data) != 0;
     } else {
@@ -144,9 +141,7 @@ zypp::ProgressData::ReceiverFnc get_progress_callback() {
 }
 
 bool dynamic_progress_callback(ZyppProgressCallback progress, void *user_data, const zypp::ProgressData &task) {
-  printf("progress called\n");
   if (progress != NULL) {
-    printf("own callback defined\n");
     ProgressData data = {task.reportValue(), task.name().c_str()};
     return progress(data, user_data) != 0;
   } else {

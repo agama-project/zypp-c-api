@@ -1,5 +1,5 @@
 use std::{cell::RefCell, env};
-use zypp_agama::{refresh_repository, DownloadProgress};
+use zypp_agama::{add_repository, refresh_repository, DownloadProgress};
 
 struct ExampleProgress {
     // We need to use RefCell here because libzypp is limited to single thread
@@ -37,7 +37,7 @@ impl DownloadProgress for ExampleProgress {
         let bar = self.progress_bar.borrow_mut();
         // well, by checking libzypp sources I know that 0 means no error :) C API do not remap yeat enum for it.
         if error_id == 0 {
-            bar.println(format!("{} download.", url));
+            bar.println(format!("{} downloaded.", url));
         } else {
             bar.println(format!("{} failed to download due to: {}.", url, reason));
         }
@@ -73,4 +73,20 @@ fn main() {
         };
         println!("Refresh done.")
     }
+
+    println!("Adding new repo agama:");
+    let result = add_repository("agama", "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/", |value, text| { 
+        println!("{}:{}%", text, value);
+        true // no abort of operation
+    });
+    if let Err(error) = result {
+        println!("Failed to add repo: {}", error);
+        return;
+    };
+    println!("Refreshing...");
+    let result = refresh_repository("agama", &progress);
+    if let Err(error) = result {
+        println!("Failed to refresh repo: {}", error);
+        return;
+    };
 }
