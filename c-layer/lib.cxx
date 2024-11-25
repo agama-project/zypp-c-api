@@ -172,6 +172,26 @@ void add_repository(const char* alias, const char* url, struct Status *status, Z
   }
 }
 
+void remove_repository(const char* alias, struct Status *status, ZyppProgressCallback callback, void* user_data) noexcept {
+  if (repo_manager == NULL) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup("Internal Error: Repo manager is not initialized.");
+    return;
+  }
+  try {
+    auto zypp_callback = create_progress_callback(callback, user_data);
+    zypp::RepoInfo zypp_repo = zypp::RepoInfo();
+    zypp_repo.setAlias(alias); // alias should be unique, so it should always match correct repo
+    
+    repo_manager->removeRepository(zypp_repo,zypp_callback);
+    status->state = status->STATE_SUCCEED;
+    status->error = NULL;
+  } catch (zypp::Exception &excpt) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup(excpt.asUserString().c_str());
+  }
+}
+
 struct RepositoryList list_repositories() noexcept {
   if (repo_manager == NULL) {
     // TODO: error reporting?

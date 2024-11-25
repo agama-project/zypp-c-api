@@ -133,6 +133,21 @@ where
     }
 }
 
+pub fn remove_repository<F>(alias: &str, progress: F) -> Result<(), ZyppError>
+where
+    F: FnMut(i64, String) -> bool,
+{
+    unsafe {
+        let mut closure = progress;
+        let cb = get_zypp_progress_callback(&closure);
+        let mut status: Status = Status { state: Status_STATE_STATE_SUCCEED, error: null_mut() };
+        let status_ptr = &mut status as *mut _ as *mut Status;
+        let c_alias = CString::new(alias).unwrap();
+        zypp_agama_sys::remove_repository(c_alias.as_ptr(), status_ptr, cb, &mut closure as *mut _ as *mut c_void);
+        return helpers::status_to_result_void(status);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
