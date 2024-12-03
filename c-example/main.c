@@ -54,7 +54,13 @@ int main(int argc, char *argv[]) {
   free_status(&status);
 
   printf("Existing repos:");
-  struct RepositoryList list = list_repositories();
+  struct RepositoryList list = list_repositories(&status);
+  if (status.state != STATE_SUCCEED) {
+    printf("list_repositories ERROR!: %s\n", status.error);
+    result = 1;
+    goto norepo;
+  }
+  free_status(&status);
   for (unsigned i = 0; i < list.size; ++i) {
     struct Repository *repo = list.repos + i;
     printf("repo %i: %s\n", i, repo->userName);
