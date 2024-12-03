@@ -45,7 +45,7 @@ impl DownloadProgress for ExampleProgress {
     }
 }
 
-fn main() {
+fn main() -> Result<(), zypp_agama::ZyppError> {
     println!("Usage: main [ROOT]");
     println!("  ROOT defaults to /");
 
@@ -53,33 +53,25 @@ fn main() {
     let default_root = "/".to_owned();
     let root = args.get(1).unwrap_or(&default_root);
 
-    let result = zypp_agama::init_target(root, |text, step, total| {
+    zypp_agama::init_target(root, |text, step, total| {
         println!("Initializing target: {}/{} - {}", step, total, text)
-    });
-    if let Err(error) = result {
-        println!("Failed to initialize target: {}", error);
-        return;
-    };
+    })?;
+
     println!("List of existing repositories:");
     let repos = zypp_agama::list_repositories();
-    let progress = ExampleProgress::new();
     for repo in repos {
         println!("- Repo {} with url {}", repo.user_name, repo.url);
     }
 
     println!("Adding new repo agama:");
-    let result = add_repository("agama", "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/", |value, text| { 
+    add_repository("agama", "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/", |value, text| {
         println!("{}:{}%", text, value);
         true // no abort of operation
-    });
-    if let Err(error) = result {
-        println!("Failed to add repo: {}", error);
-        return;
-    };
+    })?;
+
     println!("Refreshing...");
-    let result = refresh_repository("agama", &progress);
-    if let Err(error) = result {
-        println!("Failed to refresh repo: {}", error);
-        return;
-    };
+    let progress = ExampleProgress::new();
+    refresh_repository("repo-oss", &progress)?;
+
+    Ok(())
 }
