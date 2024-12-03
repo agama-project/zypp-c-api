@@ -67,7 +67,8 @@ fn main() -> Result<(), zypp_agama::ZyppError> {
     add_repository("agama", "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/", |value, text| {
         println!("{}:{}%", text, value);
         true // no abort of operation
-    })?;
+    // })?;
+    });
 
     println!("Refreshing...");
     let progress = ExampleProgress::new();

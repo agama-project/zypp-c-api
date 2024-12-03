@@ -12,6 +12,12 @@
 #include <zypp/base/Logger.h>
 
 #include <cstdarg>
+#include <iostream>
+#include <cxxabi.h>
+#include <cstdlib>
+#include <memory>
+#include <string>
+
 
 extern "C" {
 static zypp::ZYpp::Ptr zypp_pointer = NULL;
@@ -124,6 +130,14 @@ void free_status(struct Status *status) noexcept {
   }
 }
 
+std::string demangle(char const* mangled) {
+    auto ptr = std::unique_ptr<char, decltype(& std::free)>{
+        abi::__cxa_demangle(mangled, nullptr, nullptr, nullptr),
+        std::free
+    };
+    return {ptr.get()};
+}
+
 void refresh_repository(const char* alias, struct Status *status, struct DownloadProgressCallbacks *callbacks) noexcept {
   if (repo_manager == NULL) {
     status->state = status->STATE_FAILED;
@@ -147,6 +161,13 @@ void refresh_repository(const char* alias, struct Status *status, struct Downloa
   } catch (zypp::Exception &excpt) {
     status->state = status->STATE_FAILED;
     status->error = strdup(excpt.asUserString().c_str());
+    // changes here are not picked up by Makefile
+    // workaround:
+    //  (cd rust/zypp-agama; cargo clean); make
+  
+    std::cout << "HISTORY: " << excpt.historyAsString() << std::endl;
+    std::cout << "TYPEID: " << demangle(typeid(excpt).name()) << std::endl;
+
     unset_zypp_download_callbacks(); // TODO: we can add C++ final action helper if it is more common
   }
 }
