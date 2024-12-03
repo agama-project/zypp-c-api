@@ -58,7 +58,7 @@ fn main() -> Result<(), zypp_agama::ZyppError> {
     })?;
 
     println!("List of existing repositories:");
-    let repos = zypp_agama::list_repositories();
+    let repos = zypp_agama::list_repositories()?;
     for repo in repos {
         println!("- Repo {} with url {}", repo.user_name, repo.url);
     }
