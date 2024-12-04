@@ -71,7 +71,7 @@ fn main() -> Result<(), zypp_agama::ZyppError> {
 
     println!("Refreshing...");
     let progress = ExampleProgress::new();
-    refresh_repository("repo-oss", &progress)?;
+    refresh_repository("agama", &progress)?;
 
     Ok(())
 }
