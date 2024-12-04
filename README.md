@@ -13,8 +13,8 @@ Repository contains three directories:
 
 - at first create its C API in `c-layer/include` directory and write its implementation to cxx file.
 - optionally you can try and verify functionality of that API in `c-example` directory
-- generate new FFI bindings in `rust/zypp-agama-sys`
-- write rust safe wrapper around API in `zypp-agama`
+- generate new FFI bindings (in low level, unsafe Rust),  in `rust/zypp-agama-sys`
+- write a (regular, safe) Rust wrapper,  in `zypp-agama`
 - optionally verify API and its functionality in `zypp-agama-example`
 - optionally run valgrind on example CLI to ensure there are no memory leaks. If code has tests and not have CLI usage, then valgrind can be run also on rust testing binary.
 
