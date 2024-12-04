@@ -135,11 +135,6 @@ void unset_zypp_download_callbacks() {
 }
 
 #ifdef __cplusplus
-zypp::ProgressData::ReceiverFnc get_progress_callback() {
-  zypp::ProgressData::ReceiverFnc progress_handler(boost::bind(&ProgressReceive::progress, &progress_receive, _1));
-  return progress_handler;
-}
-
 bool dynamic_progress_callback(ZyppProgressCallback progress, void *user_data, const zypp::ProgressData &task) {
   if (progress != NULL) {
     ProgressData data = {task.reportValue(), task.name().c_str()};
