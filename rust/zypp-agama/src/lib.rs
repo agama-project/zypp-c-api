@@ -1,19 +1,18 @@
 use std::{
     ffi::CString,
     os::raw::{c_char, c_int, c_uint, c_void},
-    ptr::null_mut,
 };
 
 pub use callbacks::DownloadProgress;
 use zypp_agama_sys::{
-    ProgressCallback, ProgressData, Status, Status_STATE_STATE_SUCCEED, ZyppProgressCallback,
+    ProgressCallback, ProgressData, ZyppProgressCallback,
 };
 
 pub mod errors;
 pub use errors::ZyppError;
 
 mod helpers;
-use helpers::string_from_ptr;
+use helpers::{create_status_with_pointer, string_from_ptr};
 
 mod callbacks;
 
@@ -76,11 +75,7 @@ where
         let mut closure = progress;
         let cb = get_progress_callback(&closure);
         let c_root = CString::new(root).unwrap();
-        let mut status: Status = Status {
-            state: Status_STATE_STATE_SUCCEED,
-            error: null_mut(),
-        };
-        let status_ptr = &mut status as *mut _ as *mut Status;
+        let (status, status_ptr) = create_status_with_pointer();
         zypp_agama_sys::init_target(
             c_root.as_ptr(),
             status_ptr,
@@ -95,11 +90,7 @@ pub fn list_repositories() -> Result<Vec<Repository>, ZyppError> {
     let mut repos_v = vec![];
 
     unsafe {
-        let mut status: Status = Status {
-            state: Status_STATE_STATE_SUCCEED,
-            error: null_mut(),
-        };
-        let status_ptr = &mut status as *mut _ as *mut Status;
+        let (status, status_ptr) = create_status_with_pointer();
 
         let mut repos = zypp_agama_sys::list_repositories(status_ptr);
         // unwrap is ok as it will crash only on less then 32b archs,so safe for agama
@@ -133,11 +124,7 @@ pub fn list_repositories() -> Result<Vec<Repository>, ZyppError> {
 
 pub fn refresh_repository(alias: &str, progress: &impl DownloadProgress) -> Result<(), ZyppError> {
     unsafe {
-        let mut status: Status = Status {
-            state: Status_STATE_STATE_SUCCEED,
-            error: null_mut(),
-        };
-        let status_ptr = &mut status as *mut _ as *mut Status;
+        let (status, status_ptr) = create_status_with_pointer();
         let c_alias = CString::new(alias).unwrap();
         let mut refresh_fn = |mut callbacks| {
             zypp_agama_sys::refresh_repository(c_alias.as_ptr(), status_ptr, &mut callbacks)
@@ -154,11 +141,7 @@ where
     unsafe {
         let mut closure = progress;
         let cb = get_zypp_progress_callback(&closure);
-        let mut status: Status = Status {
-            state: Status_STATE_STATE_SUCCEED,
-            error: null_mut(),
-        };
-        let status_ptr = &mut status as *mut _ as *mut Status;
+        let (status, status_ptr) = create_status_with_pointer();
         let c_alias = CString::new(alias).unwrap();
         let c_url = CString::new(url).unwrap();
         zypp_agama_sys::add_repository(
@@ -179,11 +162,7 @@ where
     unsafe {
         let mut closure = progress;
         let cb = get_zypp_progress_callback(&closure);
-        let mut status: Status = Status {
-            state: Status_STATE_STATE_SUCCEED,
-            error: null_mut(),
-        };
-        let status_ptr = &mut status as *mut _ as *mut Status;
+        let (status, status_ptr) = create_status_with_pointer();
         let c_alias = CString::new(alias).unwrap();
         zypp_agama_sys::remove_repository(
             c_alias.as_ptr(),
@@ -217,11 +196,7 @@ impl Into<zypp_agama_sys::RESOLVABLE_KIND> for ResolvableKind {
 
 pub fn select_resolvable(name: &str, kind: ResolvableKind) -> Result<(), ZyppError> {
     unsafe {
-        let mut status: Status = Status {
-            state: Status_STATE_STATE_SUCCEED,
-            error: null_mut(),
-        };
-        let status_ptr = &mut status as *mut _;
+        let (status, status_ptr) = create_status_with_pointer();
         let c_name = CString::new(name).unwrap();
         let c_kind = kind.into();
         zypp_agama_sys::resolvable_select(c_name.as_ptr(), c_kind, status_ptr);
@@ -231,11 +206,7 @@ pub fn select_resolvable(name: &str, kind: ResolvableKind) -> Result<(), ZyppErr
 
 pub fn unselect_resolvable(name: &str, kind: ResolvableKind) -> Result<(), ZyppError> {
     unsafe {
-        let mut status: Status = Status {
-            state: Status_STATE_STATE_SUCCEED,
-            error: null_mut(),
-        };
-        let status_ptr = &mut status as *mut _;
+        let (status, status_ptr) = create_status_with_pointer();
         let c_name = CString::new(name).unwrap();
         let c_kind = kind.into();
         zypp_agama_sys::resolvable_unselect(c_name.as_ptr(), c_kind, status_ptr);
