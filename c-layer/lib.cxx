@@ -192,9 +192,10 @@ void remove_repository(const char* alias, struct Status *status, ZyppProgressCal
   }
 }
 
-struct RepositoryList list_repositories() noexcept {
+struct RepositoryList list_repositories(struct Status *status) noexcept {
   if (repo_manager == NULL) {
-    // TODO: error reporting?
+    status->state = status->STATE_FAILED;
+    status->error = strdup("Internal Error: Repo manager is not initialized.");
     return {0, NULL};
   }
 
@@ -211,6 +212,8 @@ struct RepositoryList list_repositories() noexcept {
   }
 
   struct RepositoryList result = {static_cast<unsigned>(size), repos};
+  status->state = status->STATE_SUCCEED;
+  status->error = NULL;
   return result;
 }
 }

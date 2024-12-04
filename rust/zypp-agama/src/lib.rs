@@ -79,13 +79,17 @@ where
     }
 }
 
-
-// TODO: use result
-pub fn list_repositories() -> Vec<Repository> {
-    let mut res = vec![];
+pub fn list_repositories() -> Result<Vec<Repository>, ZyppError> {
+    let mut repos_v = vec![];
 
     unsafe {
-        let mut repos = zypp_agama_sys::list_repositories();
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
+        let status_ptr = &mut status as *mut _ as *mut Status;
+
+        let mut repos = zypp_agama_sys::list_repositories(status_ptr);
         // unwrap is ok as it will crash only on less then 32b archs,so safe for agama
         let size_usize: usize = repos.size.try_into().unwrap();
         for i in 0..size_usize {
@@ -95,15 +99,24 @@ pub fn list_repositories() -> Vec<Repository> {
                 alias: string_from_ptr(c_repo.alias),
                 user_name: string_from_ptr(c_repo.userName),
             };
-            res.push(r_repo);
+            repos_v.push(r_repo);
         }
         let repos_rawp = &mut repos;
         zypp_agama_sys::free_repository_list(
             repos_rawp as *mut _ as *mut zypp_agama_sys::RepositoryList,
         );
-    }
 
-    res
+        let res = if status.state == zypp_agama_sys::Status_STATE_STATE_SUCCEED {
+            Ok(repos_v)
+        } else {
+            Err(crate::ZyppError::new(
+                string_from_ptr(status.error).as_str(),
+            ))
+        };
+        zypp_agama_sys::free_status(status_ptr);
+
+        res
+    }
 }
 
 pub fn refresh_repository(alias: &str, progress: &impl DownloadProgress) -> Result<(), ZyppError> {

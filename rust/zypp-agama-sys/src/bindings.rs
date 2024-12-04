@@ -165,8 +165,8 @@ extern "C" {
         progress: ProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
-    #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory"]
-    pub fn list_repositories() -> RepositoryList;
+    #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory\n @param[out] status (will overwrite existing contents)"]
+    pub fn list_repositories(status: *mut Status) -> RepositoryList;
     pub fn free_repository_list(repo_list: *mut RepositoryList);
     #[doc = " Adds repository to repo manager\n @param alias have to be unique\n @param url can contain repo variables\n @param[out] status (will overwrite existing contents)\n @param callback pointer to function with callback or NULL\n @param user_data"]
     pub fn add_repository(
