@@ -55,7 +55,8 @@ void init_target(const char *root, struct Status *status, ProgressCallback progr
 
 /// repository array in list.
 /// when no longer needed, use \ref free_repository_list to release memory
-struct RepositoryList list_repositories() noexcept;
+/// @param[out] status (will overwrite existing contents)
+struct RepositoryList list_repositories(struct Status *status) noexcept;
 
 void free_repository_list(struct RepositoryList *repo_list) noexcept;
 
