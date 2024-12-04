@@ -1,9 +1,13 @@
 use std::{
-    ffi::CString, os::raw::{c_char, c_int, c_uint, c_void}, ptr::null_mut
+    ffi::CString,
+    os::raw::{c_char, c_int, c_uint, c_void},
+    ptr::null_mut,
 };
 
 pub use callbacks::DownloadProgress;
-use zypp_agama_sys::{ ProgressCallback, ProgressData, Status, Status_STATE_STATE_SUCCEED, ZyppProgressCallback};
+use zypp_agama_sys::{
+    ProgressCallback, ProgressData, Status, Status_STATE_STATE_SUCCEED, ZyppProgressCallback,
+};
 
 pub mod errors;
 pub use errors::ZyppError;
@@ -23,7 +27,7 @@ pub struct Repository {
 unsafe extern "C" fn zypp_progress_callback<F>(
     zypp_data: ProgressData,
     user_data: *mut c_void,
-) -> c_int 
+) -> c_int
 where
     F: FnMut(i64, String) -> bool,
 {
@@ -72,9 +76,17 @@ where
         let mut closure = progress;
         let cb = get_progress_callback(&closure);
         let c_root = CString::new(root).unwrap();
-        let mut status: Status = Status { state: Status_STATE_STATE_SUCCEED, error: null_mut() };
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
         let status_ptr = &mut status as *mut _ as *mut Status;
-        zypp_agama_sys::init_target(c_root.as_ptr(), status_ptr, cb, &mut closure as *mut _ as *mut c_void);
+        zypp_agama_sys::init_target(
+            c_root.as_ptr(),
+            status_ptr,
+            cb,
+            &mut closure as *mut _ as *mut c_void,
+        );
         return helpers::status_to_result_void(status);
     }
 }
@@ -121,10 +133,15 @@ pub fn list_repositories() -> Result<Vec<Repository>, ZyppError> {
 
 pub fn refresh_repository(alias: &str, progress: &impl DownloadProgress) -> Result<(), ZyppError> {
     unsafe {
-        let mut status: Status = Status { state: Status_STATE_STATE_SUCCEED, error: null_mut() };
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
         let status_ptr = &mut status as *mut _ as *mut Status;
         let c_alias = CString::new(alias).unwrap();
-        let mut refresh_fn = |mut callbacks| zypp_agama_sys::refresh_repository(c_alias.as_ptr(), status_ptr, &mut callbacks);
+        let mut refresh_fn = |mut callbacks| {
+            zypp_agama_sys::refresh_repository(c_alias.as_ptr(), status_ptr, &mut callbacks)
+        };
         callbacks::with_c_download_callbacks(progress, &mut refresh_fn);
         return helpers::status_to_result_void(status);
     }
@@ -137,11 +154,20 @@ where
     unsafe {
         let mut closure = progress;
         let cb = get_zypp_progress_callback(&closure);
-        let mut status: Status = Status { state: Status_STATE_STATE_SUCCEED, error: null_mut() };
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
         let status_ptr = &mut status as *mut _ as *mut Status;
         let c_alias = CString::new(alias).unwrap();
         let c_url = CString::new(url).unwrap();
-        zypp_agama_sys::add_repository(c_alias.as_ptr(), c_url.as_ptr(), status_ptr, cb, &mut closure as *mut _ as *mut c_void);
+        zypp_agama_sys::add_repository(
+            c_alias.as_ptr(),
+            c_url.as_ptr(),
+            status_ptr,
+            cb,
+            &mut closure as *mut _ as *mut c_void,
+        );
         return helpers::status_to_result_void(status);
     }
 }
@@ -153,10 +179,66 @@ where
     unsafe {
         let mut closure = progress;
         let cb = get_zypp_progress_callback(&closure);
-        let mut status: Status = Status { state: Status_STATE_STATE_SUCCEED, error: null_mut() };
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
         let status_ptr = &mut status as *mut _ as *mut Status;
         let c_alias = CString::new(alias).unwrap();
-        zypp_agama_sys::remove_repository(c_alias.as_ptr(), status_ptr, cb, &mut closure as *mut _ as *mut c_void);
+        zypp_agama_sys::remove_repository(
+            c_alias.as_ptr(),
+            status_ptr,
+            cb,
+            &mut closure as *mut _ as *mut c_void,
+        );
+        return helpers::status_to_result_void(status);
+    }
+}
+
+pub enum ResolvableKind {
+    Package,
+    Pattern,
+    SrcPackage,
+    Patch,
+    Product,
+}
+
+impl Into<zypp_agama_sys::RESOLVABLE_KIND> for ResolvableKind {
+    fn into(self) -> zypp_agama_sys::RESOLVABLE_KIND {
+        match self {
+            Self::Package => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PACKAGE,
+            Self::SrcPackage => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_SRCPACKAGE,
+            Self::Patch => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PATCH,
+            Self::Product => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PRODUCT,
+            Self::Pattern => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PATTERN,
+        }
+    }
+}
+
+pub fn select_resolvable(name: &str, kind: ResolvableKind) -> Result<(), ZyppError> {
+    unsafe {
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
+        let status_ptr = &mut status as *mut _;
+        let c_name = CString::new(name).unwrap();
+        let c_kind = kind.into();
+        zypp_agama_sys::resolvable_select(c_name.as_ptr(), c_kind, status_ptr);
+        return helpers::status_to_result_void(status);
+    }
+}
+
+pub fn unselect_resolvable(name: &str, kind: ResolvableKind) -> Result<(), ZyppError> {
+    unsafe {
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
+        let status_ptr = &mut status as *mut _;
+        let c_name = CString::new(name).unwrap();
+        let c_kind = kind.into();
+        zypp_agama_sys::resolvable_unselect(c_name.as_ptr(), c_kind, status_ptr);
         return helpers::status_to_result_void(status);
     }
 }
@@ -172,7 +254,7 @@ mod tests {
     #[test]
     fn it_works() {
         init_target("/", progress_cb).unwrap();
-        let repos = list_repositories();
+        let repos = list_repositories().unwrap();
         println!("{} repos", repos.len());
         assert!(repos.len() > 10); // FIXME: just my quick validation
     }
