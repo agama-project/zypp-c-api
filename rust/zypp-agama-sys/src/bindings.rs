@@ -152,6 +152,12 @@ pub type ProgressCallback = ::std::option::Option<
         user_data: *mut ::std::os::raw::c_void,
     ),
 >;
+pub const RESOLVABLE_KIND_RESOLVABLE_PRODUCT: RESOLVABLE_KIND = 0;
+pub const RESOLVABLE_KIND_RESOLVABLE_PATCH: RESOLVABLE_KIND = 1;
+pub const RESOLVABLE_KIND_RESOLVABLE_PACKAGE: RESOLVABLE_KIND = 2;
+pub const RESOLVABLE_KIND_RESOLVABLE_SRCPACKAGE: RESOLVABLE_KIND = 3;
+pub const RESOLVABLE_KIND_RESOLVABLE_PATTERN: RESOLVABLE_KIND = 4;
+pub type RESOLVABLE_KIND = ::std::os::raw::c_uint;
 extern "C" {
     pub fn set_zypp_progress_callback(
         progress: ZyppProgressCallback,
@@ -189,5 +195,19 @@ extern "C" {
         status: *mut Status,
         callbacks: *mut DownloadProgressCallbacks,
     );
+    #[doc = " Marks resolvable for installation\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
+    pub fn resolvable_select(
+        name: *const ::std::os::raw::c_char,
+        kind: RESOLVABLE_KIND,
+        status: *mut Status,
+    );
+    #[doc = " Unselect resolvable for installation. It can still be installed as dependency.\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
+    pub fn resolvable_unselect(
+        name: *const ::std::os::raw::c_char,
+        kind: RESOLVABLE_KIND,
+        status: *mut Status,
+    );
+    #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return 0 if solver pass and 1 if it found some dependency issues"]
+    pub fn run_solver(status: *mut Status) -> ::std::os::raw::c_int;
     pub fn free_zypp();
 }

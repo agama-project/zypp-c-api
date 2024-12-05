@@ -6,12 +6,15 @@
 #include <zypp-core/Url.h>
 #include <zypp/RepoInfo.h>
 #include <zypp/RepoManager.h>
+#include <zypp/ResStatus.h>
+#include <zypp/Resolvable.h>
 #include <zypp/ZYpp.h>
 #include <zypp/ZYppFactory.h>
 #include <zypp/base/LogControl.h>
 #include <zypp/base/Logger.h>
 
 #include <cstdarg>
+#include <zypp/ui/Selectable.h>
 
 extern "C" {
 static zypp::ZYpp::Ptr zypp_pointer = NULL;
@@ -121,6 +124,59 @@ void free_status(struct Status *status) noexcept {
   if (status->error != NULL) {
     free(status->error);
     status->error = NULL;
+  }
+}
+
+static zypp::Resolvable::Kind kind_to_zypp_kind(RESOLVABLE_KIND kind) {
+  switch (kind) {
+    case RESOLVABLE_PACKAGE: return zypp::Resolvable::Kind::package;
+    case RESOLVABLE_SRCPACKAGE: return zypp::Resolvable::Kind::srcpackage;
+    case RESOLVABLE_PATTERN: return zypp::Resolvable::Kind::pattern;
+    case RESOLVABLE_PRODUCT: return zypp::Resolvable::Kind::product;
+    case RESOLVABLE_PATCH: return zypp::Resolvable::Kind::patch;     
+  }
+  return zypp::Resolvable::Kind::nokind; // should not happen
+}
+
+void resolvable_select(const char* name, enum RESOLVABLE_KIND kind, struct Status* status) noexcept {
+  zypp::Resolvable::Kind z_kind = kind_to_zypp_kind(kind);
+  auto selectable = zypp::ui::Selectable::get(z_kind, name);
+  if (!selectable) {
+    status->state = status->STATE_FAILED;
+    status->error = format_alloc("Failed to find %s with name '%s'", z_kind.c_str(), name);
+    return;
+  }
+
+  status->state = Status::STATE_SUCCEED;
+  status->error = NULL;
+  selectable->setToInstall(zypp::ResStatus::APPL_HIGH);
+}
+
+void resolvable_unselect(const char* name, enum RESOLVABLE_KIND kind, struct Status* status) noexcept {
+  zypp::Resolvable::Kind z_kind = kind_to_zypp_kind(kind);
+  auto selectable = zypp::ui::Selectable::get(z_kind, name);
+  if (!selectable) {
+    status->state = status->STATE_FAILED;
+    status->error = format_alloc("Failed to find %s with name '%s'", z_kind.c_str(), name);
+    return;
+  }
+
+  // it can look a bit strange to unset with higher causer then set, but USER is the highest priority that overwrite even locks
+  // so we should be ok in Agama.
+  selectable->unset(zypp::ResStatus::USER);
+  status->state = Status::STATE_SUCCEED;
+  status->error = NULL;
+}
+
+int run_solver(struct Status* status) noexcept {
+  try {
+    status->state = Status::STATE_SUCCEED;
+    status->error = NULL;
+    return zypp_ptr()->resolver()->resolvePool() ? 1 : 0;
+  } catch (zypp::Exception &excpt) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup(excpt.asUserString().c_str());
+    return 0; // do not matter much as status indicate failure
   }
 }
 

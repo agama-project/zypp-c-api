@@ -81,6 +81,32 @@ void remove_repository(const char* alias, struct Status *status, ZyppProgressCal
 /// @param callbacks pointer to struct with callbacks or NULL if no progress is needed
 void refresh_repository(const char* alias, struct Status* status, struct DownloadProgressCallbacks *callbacks) noexcept;
 
+
+enum RESOLVABLE_KIND {
+  RESOLVABLE_PRODUCT,
+  RESOLVABLE_PATCH,
+  RESOLVABLE_PACKAGE,
+  RESOLVABLE_SRCPACKAGE,
+  RESOLVABLE_PATTERN,
+};
+
+/// Marks resolvable for installation
+/// @param name resolvable name
+/// @param kind kind of resolvable
+/// @param[out] status (will overwrite existing contents)
+void resolvable_select(const char* name, enum RESOLVABLE_KIND kind, struct Status* status) noexcept;
+
+/// Unselect resolvable for installation. It can still be installed as dependency.
+/// @param name resolvable name
+/// @param kind kind of resolvable
+/// @param[out] status (will overwrite existing contents)
+void resolvable_unselect(const char* name, enum RESOLVABLE_KIND kind, struct Status* status) noexcept;
+
+/// Runs solver
+/// @param[out] status (will overwrite existing contents)
+/// @return 1 if solver pass and 0 if it found some dependency issues
+int run_solver(struct Status* status) noexcept;
+
 // the last call that will free all pointers to zypp holded by agama
 void free_zypp() noexcept;
 
