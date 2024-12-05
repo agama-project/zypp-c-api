@@ -207,5 +207,7 @@ extern "C" {
         kind: RESOLVABLE_KIND,
         status: *mut Status,
     );
+    #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return 0 if solver pass and 1 if it found some dependency issues"]
+    pub fn run_solver(status: *mut Status) -> ::std::os::raw::c_int;
     pub fn free_zypp();
 }

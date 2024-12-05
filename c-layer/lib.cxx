@@ -147,6 +147,8 @@ void resolvable_select(const char* name, enum RESOLVABLE_KIND kind, struct Statu
     return;
   }
 
+  status->state = Status::STATE_SUCCEED;
+  status->error = NULL;
   selectable->setToInstall(zypp::ResStatus::APPL_HIGH);
 }
 
@@ -162,6 +164,20 @@ void resolvable_unselect(const char* name, enum RESOLVABLE_KIND kind, struct Sta
   // it can look a bit strange to unset with higher causer then set, but USER is the highest priority that overwrite even locks
   // so we should be ok in Agama.
   selectable->unset(zypp::ResStatus::USER);
+  status->state = Status::STATE_SUCCEED;
+  status->error = NULL;
+}
+
+int run_solver(struct Status* status) noexcept {
+  try {
+    status->state = Status::STATE_SUCCEED;
+    status->error = NULL;
+    return zypp_ptr()->resolver()->resolvePool() ? 1 : 0;
+  } catch (zypp::Exception &excpt) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup(excpt.asUserString().c_str());
+    return 1; // do not matter much as status indicate failure
+  }
 }
 
 void refresh_repository(const char* alias, struct Status *status, struct DownloadProgressCallbacks *callbacks) noexcept {

@@ -243,6 +243,20 @@ pub fn unselect_resolvable(name: &str, kind: ResolvableKind) -> Result<(), ZyppE
     }
 }
 
+pub fn run_solver() -> Result<bool, ZyppError> {
+    unsafe {
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
+        let status_ptr = &mut status as *mut _;
+        let c_res = zypp_agama_sys::run_solver(status_ptr);
+        let r_res = c_res != 0;
+        let result = helpers::status_to_result_void(status);
+        result.and(Ok(r_res))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
