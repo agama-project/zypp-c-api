@@ -176,7 +176,7 @@ int run_solver(struct Status* status) noexcept {
   } catch (zypp::Exception &excpt) {
     status->state = status->STATE_FAILED;
     status->error = strdup(excpt.asUserString().c_str());
-    return 1; // do not matter much as status indicate failure
+    return 0; // do not matter much as status indicate failure
   }
 }
 
