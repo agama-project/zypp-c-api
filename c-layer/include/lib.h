@@ -104,7 +104,7 @@ void resolvable_unselect(const char* name, enum RESOLVABLE_KIND kind, struct Sta
 
 /// Runs solver
 /// @param[out] status (will overwrite existing contents)
-/// @return 0 if solver pass and 1 if it found some dependency issues
+/// @return 1 if solver pass and 0 if it found some dependency issues
 int run_solver(struct Status* status) noexcept;
 
 // the last call that will free all pointers to zypp holded by agama
