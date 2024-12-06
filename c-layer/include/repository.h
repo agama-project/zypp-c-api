@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 struct Repository {
+  int enabled; /// 1 if enabled, 0 if not
   char *url;        ///< owned
   char *alias;      ///< owned
   char *userName;   ///< owned

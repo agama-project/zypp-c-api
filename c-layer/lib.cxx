@@ -198,7 +198,7 @@ void refresh_repository(const char* alias, struct Status *status, struct Downloa
 
     set_zypp_download_callbacks(callbacks);
     repo_manager->refreshMetadata(
-          zypp_repo, zypp::RepoManager::RawMetadataRefreshPolicy::RefreshForced);
+          zypp_repo, zypp::RepoManager::RawMetadataRefreshPolicy::RefreshIfNeeded);
     status->state = status->STATE_SUCCEED;
     status->error = NULL;
     unset_zypp_download_callbacks();
@@ -264,6 +264,7 @@ struct RepositoryList list_repositories(struct Status *status) noexcept {
   unsigned res_i = 0;
   for (auto iter = zypp_repos.begin(); iter != zypp_repos.end(); ++iter) {
     struct Repository *new_repo = repos + res_i++;
+    new_repo->enabled = iter->enabled() ? 1 : 0;
     new_repo->url = strdup(iter->url().asString().c_str());
     new_repo->alias = strdup(iter->alias().c_str());
     new_repo->userName = strdup(iter->asUserString().c_str());

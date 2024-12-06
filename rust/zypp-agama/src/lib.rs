@@ -18,6 +18,7 @@ use helpers::string_from_ptr;
 mod callbacks;
 
 pub struct Repository {
+    pub enabled: bool,
     pub url: String,
     pub alias: String,
     pub user_name: String,
@@ -107,6 +108,7 @@ pub fn list_repositories() -> Result<Vec<Repository>, ZyppError> {
         for i in 0..size_usize {
             let c_repo = *(repos.repos.add(i));
             let r_repo = Repository {
+                enabled: c_repo.enabled != 0,
                 url: string_from_ptr(c_repo.url),
                 alias: string_from_ptr(c_repo.alias),
                 user_name: string_from_ptr(c_repo.userName),
@@ -301,7 +303,8 @@ pub fn run_solver() -> Result<bool, ZyppError> {
 // TODO: high level progress with subprogresses for steps
 pub fn load_source() -> Result<(), ZyppError> {
     let repos = list_repositories()?;
-    for i in repos {
+    let enabled_repos: Vec<&Repository> = repos.iter().filter(|r| r.enabled).collect();
+    for i in enabled_repos {
         refresh_repository(&i.alias, &callbacks::EmptyDownloadProgress)?;
         create_repo_cache(&i.alias, callbacks::empty_progress)?;
         load_repo_cache(&i.alias)?;

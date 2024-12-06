@@ -73,7 +73,7 @@ fn main() -> Result<(), zypp_agama::ZyppError> {
     let res = zypp_agama::run_solver()?;
     println!("Conflict case. Solver returns {}", res);
 
-    zypp_agama::unselect_resolvable("fpt", ResolvableKind::Package)?;
+    zypp_agama::unselect_resolvable("ftp", ResolvableKind::Package)?;
     let res = zypp_agama::run_solver()?;
     println!("Non conflicting case. Solver returns {}", res);
 

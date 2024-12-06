@@ -126,6 +126,7 @@ pub type RESOLVABLE_KIND = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Repository {
+    pub enabled: ::std::os::raw::c_int,
     #[doc = "< owned"]
     pub url: *mut ::std::os::raw::c_char,
     #[doc = "< owned"]
@@ -135,12 +136,13 @@ pub struct Repository {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-    ["Size of Repository"][::std::mem::size_of::<Repository>() - 24usize];
+    ["Size of Repository"][::std::mem::size_of::<Repository>() - 32usize];
     ["Alignment of Repository"][::std::mem::align_of::<Repository>() - 8usize];
-    ["Offset of field: Repository::url"][::std::mem::offset_of!(Repository, url) - 0usize];
-    ["Offset of field: Repository::alias"][::std::mem::offset_of!(Repository, alias) - 8usize];
+    ["Offset of field: Repository::enabled"][::std::mem::offset_of!(Repository, enabled) - 0usize];
+    ["Offset of field: Repository::url"][::std::mem::offset_of!(Repository, url) - 8usize];
+    ["Offset of field: Repository::alias"][::std::mem::offset_of!(Repository, alias) - 16usize];
     ["Offset of field: Repository::userName"]
-        [::std::mem::offset_of!(Repository, userName) - 16usize];
+        [::std::mem::offset_of!(Repository, userName) - 24usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
