@@ -4,6 +4,11 @@ use zypp_agama_sys::{DownloadProgressCallbacks, ZyppDownloadFinishCallback, Zypp
 
 use crate::helpers::string_from_ptr;
 
+// empty progress callback
+pub fn empty_progress(_value: i64, _text: String) -> bool {
+    true
+}
+
 pub enum ProblemResponse {
     RETRY,
     ABORT,

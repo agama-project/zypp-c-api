@@ -297,6 +297,18 @@ pub fn run_solver() -> Result<bool, ZyppError> {
     }
 }
 
+// high level method to load source
+// TODO: high level progress with subprogresses for steps
+pub fn load_source() -> Result<(), ZyppError> {
+    let repos = list_repositories()?;
+    for i in repos {
+        refresh_repository(&i.alias, &callbacks::EmptyDownloadProgress)?;
+        create_repo_cache(&i.alias, callbacks::empty_progress)?;
+        load_repo_cache(&i.alias)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
