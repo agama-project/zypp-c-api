@@ -1,6 +1,7 @@
-use std::{cell::RefCell, env};
-use zypp_agama::{add_repository, refresh_repository, DownloadProgress};
+use std::env;
+use zypp_agama::ResolvableKind;
 
+/*
 struct ExampleProgress {
     // We need to use RefCell here because libzypp is limited to single thread
     // and trait for progress cannot use `&mut self` as it passed multiple callbacks
@@ -45,6 +46,8 @@ impl DownloadProgress for ExampleProgress {
     }
 }
 
+*/
+
 fn main() -> Result<(), zypp_agama::ZyppError> {
     println!("Usage: main [ROOT]");
     println!("  ROOT defaults to /");
@@ -63,15 +66,19 @@ fn main() -> Result<(), zypp_agama::ZyppError> {
         println!("- Repo {} with url {}", repo.user_name, repo.url);
     }
 
-    println!("Adding new repo agama:");
-    add_repository("agama", "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/", |value, text| {
-        println!("{}:{}%", text, value);
-        true // no abort of operation
+    zypp_agama::load_source(|percent, text| {
+        println!("{}%: {}", percent, text);
+        true
     })?;
+    // intentionally create conflict
+    zypp_agama::select_resolvable("ftp", ResolvableKind::Package)?;
+    zypp_agama::select_resolvable("tnftp", ResolvableKind::Package)?;
+    let res = zypp_agama::run_solver()?;
+    println!("Conflict case. Solver returns {}", res);
 
-    println!("Refreshing...");
-    let progress = ExampleProgress::new();
-    refresh_repository("agama", &progress)?;
+    zypp_agama::unselect_resolvable("ftp", ResolvableKind::Package)?;
+    let res = zypp_agama::run_solver()?;
+    println!("Non conflicting case. Solver returns {}", res);
 
     Ok(())
 }

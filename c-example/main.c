@@ -1,23 +1,26 @@
 #include "callbacks.h"
 #include "lib.h"
+#include "repository.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 void progress(const char *text, unsigned stage, unsigned total, void *data) {
   printf("(%s) %u/%u: %s\n", (const char *)data, stage, total, text);
 }
 
-int zypp_progress(struct ProgressData data, void *user_data) {
+bool zypp_progress(struct ProgressData data, void *user_data) {
   printf("(%s) %lld%%\n", data.name, data.value);
-  return 1;
+  return true;
 }
 
 void download_progress_start(const char *url, const char *localfile, void *user_data) {
   printf("Starting download of %s to %s\n", url, localfile);
 }
 
-int download_progress_progress(int value, const char *url, double bps_avg, double bps_current, void *user_data) {
+bool download_progress_progress(int value, const char *url, double bps_avg, double bps_current, void *user_data) {
   printf("Downloading %s with %i%% (speed: now %f avg %f)\n", url, value, bps_current, bps_avg);
-  return 1;
+  return true;
 }
 
 enum PROBLEM_RESPONSE download_progress_problem(const char *url, int error, const char *description, void *user_data) {
@@ -31,7 +34,7 @@ void download_progress_finish(const char *url, int error, const char *reason, vo
 }
 
 int main(int argc, char *argv[]) {
-  int result = 0;
+  int result = EXIT_SUCCESS;
   struct Status status;
   struct DownloadProgressCallbacks download_callbacks = {
     download_progress_start, NULL,
@@ -48,7 +51,7 @@ int main(int argc, char *argv[]) {
   init_target(root, &status, progress, (void *)prefix);
   if (status.state != STATE_SUCCEED) {
     printf("init ERROR!: %s\n", status.error);
-    result = 1;
+    result = EXIT_FAILURE;
     goto norepo;
   }
   free_status(&status);
@@ -57,7 +60,7 @@ int main(int argc, char *argv[]) {
   struct RepositoryList list = list_repositories(&status);
   if (status.state != STATE_SUCCEED) {
     printf("list_repositories ERROR!: %s\n", status.error);
-    result = 1;
+    result = EXIT_FAILURE;
     goto norepo;
   }
   free_status(&status);
@@ -71,7 +74,7 @@ int main(int argc, char *argv[]) {
   add_repository("agama", "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/", &status, zypp_progress, NULL);
   if (status.state != STATE_SUCCEED) {
     printf("failed to add repo!: %s\n", status.error);
-    result = 1;
+    result = EXIT_FAILURE;
     goto repoerr;
   }
   free_status(&status);

@@ -1,6 +1,6 @@
 use std::{
     ffi::CString,
-    os::raw::{c_char, c_int, c_uint, c_void},
+    os::raw::{c_char, c_uint, c_void},
     ptr::null_mut,
 };
 
@@ -18,6 +18,7 @@ use helpers::string_from_ptr;
 mod callbacks;
 
 pub struct Repository {
+    pub enabled: bool,
     pub url: String,
     pub alias: String,
     pub user_name: String,
@@ -27,17 +28,13 @@ pub struct Repository {
 unsafe extern "C" fn zypp_progress_callback<F>(
     zypp_data: ProgressData,
     user_data: *mut c_void,
-) -> c_int
+) -> bool
 where
     F: FnMut(i64, String) -> bool,
 {
     let user_data = &mut *(user_data as *mut F);
     let res = user_data(zypp_data.value, string_from_ptr(zypp_data.name));
-    if res {
-        1 as c_int
-    } else {
-        0 as c_int
-    }
+    res
 }
 
 fn get_zypp_progress_callback<F>(_closure: &F) -> ZyppProgressCallback
@@ -107,6 +104,7 @@ pub fn list_repositories() -> Result<Vec<Repository>, ZyppError> {
         for i in 0..size_usize {
             let c_repo = *(repos.repos.add(i));
             let r_repo = Repository {
+                enabled: c_repo.enabled,
                 url: string_from_ptr(c_repo.url),
                 alias: string_from_ptr(c_repo.alias),
                 user_name: string_from_ptr(c_repo.userName),
@@ -195,6 +193,46 @@ where
     }
 }
 
+pub fn create_repo_cache<F>(alias: &str, progress: F) -> Result<(), ZyppError>
+where
+    F: FnMut(i64, String) -> bool,
+{
+    unsafe {
+        let mut closure = progress;
+        let cb = get_zypp_progress_callback(&closure);
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
+        let status_ptr = &mut status as *mut _ as *mut Status;
+        let c_alias = CString::new(alias).unwrap();
+        zypp_agama_sys::build_repository_cache(
+            c_alias.as_ptr(),
+            status_ptr,
+            cb,
+            &mut closure as *mut _ as *mut c_void,
+        );
+        return helpers::status_to_result_void(status);
+    }
+}
+
+pub fn load_repo_cache(alias: &str) -> Result<(), ZyppError>
+{
+    unsafe {
+        let mut status: Status = Status {
+            state: Status_STATE_STATE_SUCCEED,
+            error: null_mut(),
+        };
+        let status_ptr = &mut status as *mut _ as *mut Status;
+        let c_alias = CString::new(alias).unwrap();
+        zypp_agama_sys::load_repository_cache(
+            c_alias.as_ptr(),
+            status_ptr,
+        );
+        return helpers::status_to_result_void(status);
+    }
+}
+
 pub enum ResolvableKind {
     Package,
     Pattern,
@@ -250,11 +288,46 @@ pub fn run_solver() -> Result<bool, ZyppError> {
             error: null_mut(),
         };
         let status_ptr = &mut status as *mut _;
-        let c_res = zypp_agama_sys::run_solver(status_ptr);
-        let r_res = c_res != 0;
+        let r_res = zypp_agama_sys::run_solver(status_ptr);
         let result = helpers::status_to_result_void(status);
         result.and(Ok(r_res))
     }
+}
+
+// high level method to load source
+pub fn load_source<F>(progress: F) -> Result<(), ZyppError> 
+where
+    F: Fn(i64, String) -> bool,
+{
+    let repos = list_repositories()?;
+    let enabled_repos: Vec<&Repository> = repos.iter().filter(|r| r.enabled).collect();
+    // TODO: this step logic for progress can be enclosed to own struct
+    let mut percent: f64 = 0.0;
+    let percent_step: f64 = 100.0/(enabled_repos.len() as f64 * 3.0); // 3 substeps
+    let abort_err = Err(ZyppError::new("Operation aborted"));
+    let mut cont: bool;
+    for i in enabled_repos {
+        cont = progress(percent.floor() as i64, format!("Refreshing repository {}", &i.alias).to_string());
+        if !cont {
+            return abort_err;
+        }
+        refresh_repository(&i.alias, &callbacks::EmptyDownloadProgress)?;
+        percent += percent_step;
+        cont = progress(percent.floor() as i64, format!("Creating repository cache for {}", &i.alias).to_string());
+        if !cont {
+            return abort_err;
+        }
+        create_repo_cache(&i.alias, callbacks::empty_progress)?;
+        percent += percent_step;
+        cont = progress(percent.floor() as i64, format!("Loading repository cache for {}", &i.alias).to_string());
+        if !cont {
+            return abort_err;
+        }
+        load_repo_cache(&i.alias)?;
+        percent += percent_step;
+    }
+    progress(100, "Loading repositories finished".to_string());
+    Ok(())
 }
 
 #[cfg(test)]

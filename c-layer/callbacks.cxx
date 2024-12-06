@@ -27,7 +27,7 @@ struct ProgressReceive : zypp::callback::ReceiveReport<zypp::ProgressReport> {
   bool progress(const zypp::ProgressData &task) {
     if (callback != NULL) {
       ProgressData data = {task.reportValue(), task.name().c_str()};
-      return callback(data, user_data) != 0;
+      return callback(data, user_data);
     } else {
       return zypp::ProgressReport::progress(task);
     }
@@ -138,7 +138,7 @@ void unset_zypp_download_callbacks() {
 bool dynamic_progress_callback(ZyppProgressCallback progress, void *user_data, const zypp::ProgressData &task) {
   if (progress != NULL) {
     ProgressData data = {task.reportValue(), task.name().c_str()};
-    return progress(data, user_data) != 0;
+    return progress(data, user_data);
   } else {
     return true;
   }
