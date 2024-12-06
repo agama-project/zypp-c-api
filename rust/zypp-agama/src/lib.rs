@@ -108,16 +108,7 @@ pub fn list_repositories() -> ZyppResult<Vec<Repository>> {
             repos_rawp as *mut _ as *mut zypp_agama_sys::RepositoryList,
         );
 
-        let res = if status.state == zypp_agama_sys::Status_STATE_STATE_SUCCEED {
-            Ok(repos_v)
-        } else {
-            Err(crate::ZyppError::new(
-                string_from_ptr(status.error).as_str(),
-            ))
-        };
-        zypp_agama_sys::free_status(status_ptr);
-
-        res
+        helpers::status_to_result_void(status).and(Ok(repos_v))
     }
 }
 
