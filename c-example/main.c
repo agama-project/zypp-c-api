@@ -1,5 +1,6 @@
 #include "callbacks.h"
 #include "lib.h"
+#include "repository.h"
 #include <stdio.h>
 
 void progress(const char *text, unsigned stage, unsigned total, void *data) {

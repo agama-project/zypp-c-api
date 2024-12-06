@@ -1,11 +1,13 @@
 #include "lib.h"
 #include "callbacks.h"
+#include "repository.h"
 #include "callbacks.hxx"
 
 #include <cstddef>
 #include <zypp-core/Url.h>
 #include <zypp/RepoInfo.h>
 #include <zypp/RepoManager.h>
+#include <zypp/RepoManagerFlags.h>
 #include <zypp/ResStatus.h>
 #include <zypp/Resolvable.h>
 #include <zypp/ZYpp.h>
@@ -176,7 +178,7 @@ int run_solver(struct Status* status) noexcept {
   } catch (zypp::Exception &excpt) {
     status->state = status->STATE_FAILED;
     status->error = strdup(excpt.asUserString().c_str());
-    return 0; // do not matter much as status indicate failure
+    return 1; // do not matter much as status indicate failure
   }
 }
 
@@ -272,4 +274,53 @@ struct RepositoryList list_repositories(struct Status *status) noexcept {
   status->error = NULL;
   return result;
 }
+
+void load_repository_cache(const char* alias, struct Status *status) noexcept {
+  if (repo_manager == NULL) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup("Internal Error: Repo manager is not initialized.");
+    return;
+  }
+  try {
+    zypp::RepoInfo zypp_repo = repo_manager->getRepo(alias);
+    if (zypp_repo == zypp::RepoInfo::noRepo) {
+      status->state = status->STATE_FAILED;
+      status->error = format_alloc("Cannot load repo with alias %s. Repo not found.", alias);
+      return;
+    }
+
+    // NOTE: progress parameter is ignored, so do not make sense to pass progress
+    repo_manager->loadFromCache(zypp_repo );
+    status->state = status->STATE_SUCCEED;
+    status->error = NULL;
+  } catch (zypp::Exception &excpt) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup(excpt.asUserString().c_str());
+  }
+}
+
+void build_repository_cache(const char* alias, struct Status *status, ZyppProgressCallback callback, void* user_data) noexcept {
+  if (repo_manager == NULL) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup("Internal Error: Repo manager is not initialized.");
+    return;
+  }
+  try {
+    zypp::RepoInfo zypp_repo = repo_manager->getRepo(alias);
+    if (zypp_repo == zypp::RepoInfo::noRepo) {
+      status->state = status->STATE_FAILED;
+      status->error = format_alloc("Cannot load repo with alias %s. Repo not found.", alias);
+      return;
+    }
+
+    auto progress = create_progress_callback(callback, user_data);
+    repo_manager->buildCache(zypp_repo, zypp::RepoManagerFlags::BuildIfNeeded, progress);
+    status->state = status->STATE_SUCCEED;
+    status->error = NULL;
+  } catch (zypp::Exception &excpt) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup(excpt.asUserString().c_str());
+  }
+}
+
 }

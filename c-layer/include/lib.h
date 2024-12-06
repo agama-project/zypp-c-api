@@ -9,17 +9,6 @@ extern "C" {
 #ifndef __cplusplus
 #define noexcept ;
 #endif
-struct Repository {
-  char *url;        ///< owned
-  char *alias;      ///< owned
-  char *userName;   ///< owned
-};
-
-struct RepositoryList {
-  const unsigned size;
-  /// dynamic array with given size
-  struct Repository *repos; ///< owned, *size* items
-};
 
 /// status struct to pass and obtain from calls that can fail.
 /// After usage free with \ref free_status function.
@@ -52,35 +41,6 @@ typedef void (*ProgressCallback)(const char *text, unsigned stage, unsigned tota
 /// @param progress
 /// @param user_data
 void init_target(const char *root, struct Status *status, ProgressCallback progress, void *user_data) noexcept;
-
-/// repository array in list.
-/// when no longer needed, use \ref free_repository_list to release memory
-/// @param[out] status (will overwrite existing contents)
-struct RepositoryList list_repositories(struct Status *status) noexcept;
-
-void free_repository_list(struct RepositoryList *repo_list) noexcept;
-
-/// Adds repository to repo manager
-/// @param alias have to be unique
-/// @param url can contain repo variables
-/// @param[out] status (will overwrite existing contents)
-/// @param callback pointer to function with callback or NULL
-/// @param user_data
-void add_repository(const char* alias, const char* url, struct Status *status, ZyppProgressCallback callback, void* user_data) noexcept;
-
-/// Removes repository from repo manager
-/// @param alias have to be unique
-/// @param[out] status (will overwrite existing contents)
-/// @param callback pointer to function with callback or NULL
-/// @param user_data
-void remove_repository(const char* alias, struct Status *status, ZyppProgressCallback callback, void* user_data) noexcept;
-
-///
-/// @param alias alias of repository to refresh
-/// @param[out] status (will overwrite existing contents)
-/// @param callbacks pointer to struct with callbacks or NULL if no progress is needed
-void refresh_repository(const char* alias, struct Status* status, struct DownloadProgressCallbacks *callbacks) noexcept;
-
 
 enum RESOLVABLE_KIND {
   RESOLVABLE_PRODUCT,

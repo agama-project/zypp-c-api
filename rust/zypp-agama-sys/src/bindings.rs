@@ -90,6 +90,39 @@ const _: () = {
     ["Offset of field: DownloadProgressCallbacks::finish_data"]
         [::std::mem::offset_of!(DownloadProgressCallbacks, finish_data) - 56usize];
 };
+#[doc = " status struct to pass and obtain from calls that can fail.\n After usage free with \\ref free_status function.\n\n Most functions act as *constructors* for this, taking a pointer\n to it as an output parameter, disregarding the struct current contents\n and filling it in. Thus, if you reuse a `Status` without \\ref free_status\n in between, `error` will leak."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Status {
+    pub state: Status_STATE,
+    #[doc = "< owned"]
+    pub error: *mut ::std::os::raw::c_char,
+}
+pub const Status_STATE_STATE_SUCCEED: Status_STATE = 0;
+pub const Status_STATE_STATE_FAILED: Status_STATE = 1;
+pub type Status_STATE = ::std::os::raw::c_uint;
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of Status"][::std::mem::size_of::<Status>() - 16usize];
+    ["Alignment of Status"][::std::mem::align_of::<Status>() - 8usize];
+    ["Offset of field: Status::state"][::std::mem::offset_of!(Status, state) - 0usize];
+    ["Offset of field: Status::error"][::std::mem::offset_of!(Status, error) - 8usize];
+};
+#[doc = " Progress reporting callback used by methods that takes longer.\n @param text  text for user describing what is happening now\n @param stage current stage number starting with 0\n @param total count of stages. It should not change during single call of method.\n @param user_data is never touched by method and is used only to pass local data for callback\n @todo Do we want to support response for callback that allows early exit of execution?"]
+pub type ProgressCallback = ::std::option::Option<
+    unsafe extern "C" fn(
+        text: *const ::std::os::raw::c_char,
+        stage: ::std::os::raw::c_uint,
+        total: ::std::os::raw::c_uint,
+        user_data: *mut ::std::os::raw::c_void,
+    ),
+>;
+pub const RESOLVABLE_KIND_RESOLVABLE_PRODUCT: RESOLVABLE_KIND = 0;
+pub const RESOLVABLE_KIND_RESOLVABLE_PATCH: RESOLVABLE_KIND = 1;
+pub const RESOLVABLE_KIND_RESOLVABLE_PACKAGE: RESOLVABLE_KIND = 2;
+pub const RESOLVABLE_KIND_RESOLVABLE_SRCPACKAGE: RESOLVABLE_KIND = 3;
+pub const RESOLVABLE_KIND_RESOLVABLE_PATTERN: RESOLVABLE_KIND = 4;
+pub type RESOLVABLE_KIND = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Repository {
@@ -125,39 +158,6 @@ const _: () = {
     ["Offset of field: RepositoryList::repos"]
         [::std::mem::offset_of!(RepositoryList, repos) - 8usize];
 };
-#[doc = " status struct to pass and obtain from calls that can fail.\n After usage free with \\ref free_status function.\n\n Most functions act as *constructors* for this, taking a pointer\n to it as an output parameter, disregarding the struct current contents\n and filling it in. Thus, if you reuse a `Status` without \\ref free_status\n in between, `error` will leak."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Status {
-    pub state: Status_STATE,
-    #[doc = "< owned"]
-    pub error: *mut ::std::os::raw::c_char,
-}
-pub const Status_STATE_STATE_SUCCEED: Status_STATE = 0;
-pub const Status_STATE_STATE_FAILED: Status_STATE = 1;
-pub type Status_STATE = ::std::os::raw::c_uint;
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of Status"][::std::mem::size_of::<Status>() - 16usize];
-    ["Alignment of Status"][::std::mem::align_of::<Status>() - 8usize];
-    ["Offset of field: Status::state"][::std::mem::offset_of!(Status, state) - 0usize];
-    ["Offset of field: Status::error"][::std::mem::offset_of!(Status, error) - 8usize];
-};
-#[doc = " Progress reporting callback used by methods that takes longer.\n @param text  text for user describing what is happening now\n @param stage current stage number starting with 0\n @param total count of stages. It should not change during single call of method.\n @param user_data is never touched by method and is used only to pass local data for callback\n @todo Do we want to support response for callback that allows early exit of execution?"]
-pub type ProgressCallback = ::std::option::Option<
-    unsafe extern "C" fn(
-        text: *const ::std::os::raw::c_char,
-        stage: ::std::os::raw::c_uint,
-        total: ::std::os::raw::c_uint,
-        user_data: *mut ::std::os::raw::c_void,
-    ),
->;
-pub const RESOLVABLE_KIND_RESOLVABLE_PRODUCT: RESOLVABLE_KIND = 0;
-pub const RESOLVABLE_KIND_RESOLVABLE_PATCH: RESOLVABLE_KIND = 1;
-pub const RESOLVABLE_KIND_RESOLVABLE_PACKAGE: RESOLVABLE_KIND = 2;
-pub const RESOLVABLE_KIND_RESOLVABLE_SRCPACKAGE: RESOLVABLE_KIND = 3;
-pub const RESOLVABLE_KIND_RESOLVABLE_PATTERN: RESOLVABLE_KIND = 4;
-pub type RESOLVABLE_KIND = ::std::os::raw::c_uint;
 extern "C" {
     pub fn set_zypp_progress_callback(
         progress: ZyppProgressCallback,
@@ -171,6 +171,21 @@ extern "C" {
         progress: ProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
+    #[doc = " Marks resolvable for installation\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
+    pub fn resolvable_select(
+        name: *const ::std::os::raw::c_char,
+        kind: RESOLVABLE_KIND,
+        status: *mut Status,
+    );
+    #[doc = " Unselect resolvable for installation. It can still be installed as dependency.\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
+    pub fn resolvable_unselect(
+        name: *const ::std::os::raw::c_char,
+        kind: RESOLVABLE_KIND,
+        status: *mut Status,
+    );
+    #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return 1 if solver pass and 0 if it found some dependency issues"]
+    pub fn run_solver(status: *mut Status) -> ::std::os::raw::c_int;
+    pub fn free_zypp();
     #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory\n @param[out] status (will overwrite existing contents)"]
     pub fn list_repositories(status: *mut Status) -> RepositoryList;
     pub fn free_repository_list(repo_list: *mut RepositoryList);
@@ -195,19 +210,11 @@ extern "C" {
         status: *mut Status,
         callbacks: *mut DownloadProgressCallbacks,
     );
-    #[doc = " Marks resolvable for installation\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
-    pub fn resolvable_select(
-        name: *const ::std::os::raw::c_char,
-        kind: RESOLVABLE_KIND,
+    pub fn build_repository_cache(
+        alias: *const ::std::os::raw::c_char,
         status: *mut Status,
+        callback: ZyppProgressCallback,
+        user_data: *mut ::std::os::raw::c_void,
     );
-    #[doc = " Unselect resolvable for installation. It can still be installed as dependency.\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
-    pub fn resolvable_unselect(
-        name: *const ::std::os::raw::c_char,
-        kind: RESOLVABLE_KIND,
-        status: *mut Status,
-    );
-    #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return 0 if solver pass and 1 if it found some dependency issues"]
-    pub fn run_solver(status: *mut Status) -> ::std::os::raw::c_int;
-    pub fn free_zypp();
+    pub fn load_repository_cache(alias: *const ::std::os::raw::c_char, status: *mut Status);
 }
