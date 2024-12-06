@@ -290,7 +290,7 @@ void load_repository_cache(const char* alias, struct Status *status) noexcept {
       return;
     }
 
-    // NOTE: progress parameter is ignored, so do not make sense to pass progress
+    // NOTE: loadFromCache has an optional `progress` parameter but it ignores it anyway
     repo_manager->loadFromCache(zypp_repo );
     status->state = status->STATE_SUCCEED;
     status->error = NULL;
