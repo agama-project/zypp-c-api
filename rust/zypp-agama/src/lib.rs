@@ -260,9 +260,28 @@ pub fn run_solver() -> Result<bool, ZyppError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
 
     fn progress_cb(_text: String, _stage: u32, _total: u32) {
         // for test do nothing..maybe some check of callbacks?
+    }
+
+    #[test]
+    fn init_target_ok() -> Result<(), Box<dyn Error>> {
+        println!("> These tests cannot be run in multiple threads");
+        println!("> because libzypp is not thread safe, and we do not mutex it (yet)");
+        println!("> Use `make check` which calls `cargo test -- --test-threads=1`");
+
+        init_target("/", progress_cb)?;
+        // TODO: free_zypp, don't leak RepoManager
+        Ok(())
+    }
+
+    #[test]
+    fn init_target_err() -> Result<(), Box<dyn Error>> {
+        let result = init_target("/nosuchdir", progress_cb);
+        assert!(result.is_err());
+        Ok(())
     }
 
     #[test]
