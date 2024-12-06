@@ -300,15 +300,38 @@ pub fn run_solver() -> Result<bool, ZyppError> {
 }
 
 // high level method to load source
-// TODO: high level progress with subprogresses for steps
-pub fn load_source() -> Result<(), ZyppError> {
+pub fn load_source<F>(progress: F) -> Result<(), ZyppError> 
+where
+    F: Fn(i64, String) -> bool,
+{
     let repos = list_repositories()?;
     let enabled_repos: Vec<&Repository> = repos.iter().filter(|r| r.enabled).collect();
+    // TODO: this step logic for progress can be enclosed to own struct
+    let mut percent: f64 = 0.0;
+    let percent_step: f64 = 100.0/(enabled_repos.len() as f64 * 3.0); // 3 substeps
+    let abort_err = Err(ZyppError::new("Operation aborted"));
+    let mut cont: bool;
     for i in enabled_repos {
+        cont = progress(percent.floor() as i64, format!("Refreshing repository {}", &i.alias).to_string());
+        if !cont {
+            return abort_err;
+        }
         refresh_repository(&i.alias, &callbacks::EmptyDownloadProgress)?;
+        percent += percent_step;
+        cont = progress(percent.floor() as i64, format!("Creating repository cache for {}", &i.alias).to_string());
+        if !cont {
+            return abort_err;
+        }
         create_repo_cache(&i.alias, callbacks::empty_progress)?;
+        percent += percent_step;
+        cont = progress(percent.floor() as i64, format!("Loading repository cache for {}", &i.alias).to_string());
+        if !cont {
+            return abort_err;
+        }
         load_repo_cache(&i.alias)?;
+        percent += percent_step;
     }
+    progress(100, "Loading repositories finished".to_string());
     Ok(())
 }
 

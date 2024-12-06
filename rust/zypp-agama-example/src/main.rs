@@ -66,7 +66,10 @@ fn main() -> Result<(), zypp_agama::ZyppError> {
         println!("- Repo {} with url {}", repo.user_name, repo.url);
     }
 
-    zypp_agama::load_source()?;
+    zypp_agama::load_source(|percent, text| {
+        println!("{}%: {}", percent, text);
+        true
+    })?;
     // intentionally create conflict
     zypp_agama::select_resolvable("ftp", ResolvableKind::Package)?;
     zypp_agama::select_resolvable("tnftp", ResolvableKind::Package)?;
