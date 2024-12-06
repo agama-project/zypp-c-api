@@ -108,7 +108,7 @@ pub fn list_repositories() -> Result<Vec<Repository>, ZyppError> {
         for i in 0..size_usize {
             let c_repo = *(repos.repos.add(i));
             let r_repo = Repository {
-                enabled: c_repo.enabled != 0,
+                enabled: c_repo.enabled,
                 url: string_from_ptr(c_repo.url),
                 alias: string_from_ptr(c_repo.alias),
                 user_name: string_from_ptr(c_repo.userName),

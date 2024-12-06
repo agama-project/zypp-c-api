@@ -264,7 +264,7 @@ struct RepositoryList list_repositories(struct Status *status) noexcept {
   unsigned res_i = 0;
   for (auto iter = zypp_repos.begin(); iter != zypp_repos.end(); ++iter) {
     struct Repository *new_repo = repos + res_i++;
-    new_repo->enabled = iter->enabled() ? 1 : 0;
+    new_repo->enabled = iter->enabled();
     new_repo->url = strdup(iter->url().asString().c_str());
     new_repo->alias = strdup(iter->alias().c_str());
     new_repo->userName = strdup(iter->asUserString().c_str());

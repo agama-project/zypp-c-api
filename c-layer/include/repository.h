@@ -3,13 +3,14 @@
 
 #include "callbacks.h"
 #include "lib.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct Repository {
-  int enabled; /// 1 if enabled, 0 if not
+  bool enabled;     ///<
   char *url;        ///< owned
   char *alias;      ///< owned
   char *userName;   ///< owned
