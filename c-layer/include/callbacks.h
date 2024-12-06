@@ -1,6 +1,8 @@
 #ifndef C_CALLBACKS_H_
 #define C_CALLBACKS_H_
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -18,8 +20,8 @@ struct ProgressData {
 // Progress reporting callback passed to libzypp.
 // zypp_data is ProgressData get from zypp
 // user_data is never touched by method and is used only to pass local data for callback
-// return value indicate if zypp should abort operation. Can be ignored
-typedef int (*ZyppProgressCallback)(struct ProgressData zypp_data, void *user_data);
+/// @return true to continue, false to abort. Can be ignored
+typedef bool (*ZyppProgressCallback)(struct ProgressData zypp_data, void *user_data);
 void set_zypp_progress_callback (ZyppProgressCallback progress, void *user_data);
 
 
@@ -29,7 +31,7 @@ enum PROBLEM_RESPONSE {
   PROBLEM_IGNORE
 };
 typedef void (*ZyppDownloadStartCallback)(const char* url, const char* localfile, void *user_data);
-typedef int (*ZyppDownloadProgressCallback)(int value, const char* url, double bps_avg, double bps_current, void *user_data);
+typedef bool (*ZyppDownloadProgressCallback)(int value, const char* url, double bps_avg, double bps_current, void *user_data);
 typedef enum PROBLEM_RESPONSE (*ZyppDownloadProblemCallback)(const char* url, int error, const char* description, void *user_data);
 typedef void (*ZyppDownloadFinishCallback)(const char* url, int error, const char* reason, void *user_data);
 

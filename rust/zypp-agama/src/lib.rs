@@ -1,6 +1,6 @@
 use std::{
     ffi::CString,
-    os::raw::{c_char, c_int, c_uint, c_void},
+    os::raw::{c_char, c_uint, c_void},
     ptr::null_mut,
 };
 
@@ -28,17 +28,13 @@ pub struct Repository {
 unsafe extern "C" fn zypp_progress_callback<F>(
     zypp_data: ProgressData,
     user_data: *mut c_void,
-) -> c_int
+) -> bool
 where
     F: FnMut(i64, String) -> bool,
 {
     let user_data = &mut *(user_data as *mut F);
     let res = user_data(zypp_data.value, string_from_ptr(zypp_data.name));
-    if res {
-        1 as c_int
-    } else {
-        0 as c_int
-    }
+    res
 }
 
 fn get_zypp_progress_callback<F>(_closure: &F) -> ZyppProgressCallback
@@ -292,8 +288,7 @@ pub fn run_solver() -> Result<bool, ZyppError> {
             error: null_mut(),
         };
         let status_ptr = &mut status as *mut _;
-        let c_res = zypp_agama_sys::run_solver(status_ptr);
-        let r_res = c_res != 0;
+        let r_res = zypp_agama_sys::run_solver(status_ptr);
         let result = helpers::status_to_result_void(status);
         result.and(Ok(r_res))
     }

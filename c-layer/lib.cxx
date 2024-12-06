@@ -170,15 +170,15 @@ void resolvable_unselect(const char* name, enum RESOLVABLE_KIND kind, struct Sta
   status->error = NULL;
 }
 
-int run_solver(struct Status* status) noexcept {
+bool run_solver(struct Status* status) noexcept {
   try {
     status->state = Status::STATE_SUCCEED;
     status->error = NULL;
-    return zypp_ptr()->resolver()->resolvePool() ? 1 : 0;
+    return zypp_ptr()->resolver()->resolvePool();
   } catch (zypp::Exception &excpt) {
     status->state = status->STATE_FAILED;
     status->error = strdup(excpt.asUserString().c_str());
-    return 1; // do not matter much as status indicate failure
+    return false; // do not matter much as status indicate failure
   }
 }
 

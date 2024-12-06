@@ -59,18 +59,13 @@ unsafe extern "C" fn download_progress_progress<F>(
     bps_avg: f64,
     bps_current: f64,
     user_data: *mut c_void,
-) -> c_int
+) -> bool
 where
     F: FnMut(i32, String, f64, f64) -> bool,
 {
     let user_data = &mut *(user_data as *mut F);
     let res = user_data(value.into(), string_from_ptr(url), bps_avg, bps_current);
-    // C type boolean
-    if res {
-        1 as c_int
-      } else {
-        0 as c_int
-      }
+    res
 }
 
 fn get_download_progress_progress<F>(_closure: &F) -> ZyppDownloadProgressCallback

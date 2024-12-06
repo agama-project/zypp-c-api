@@ -17,10 +17,7 @@ const _: () = {
     ["Offset of field: ProgressData::name"][::std::mem::offset_of!(ProgressData, name) - 8usize];
 };
 pub type ZyppProgressCallback = ::std::option::Option<
-    unsafe extern "C" fn(
-        zypp_data: ProgressData,
-        user_data: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int,
+    unsafe extern "C" fn(zypp_data: ProgressData, user_data: *mut ::std::os::raw::c_void) -> bool,
 >;
 pub const PROBLEM_RESPONSE_PROBLEM_RETRY: PROBLEM_RESPONSE = 0;
 pub const PROBLEM_RESPONSE_PROBLEM_ABORT: PROBLEM_RESPONSE = 1;
@@ -40,7 +37,7 @@ pub type ZyppDownloadProgressCallback = ::std::option::Option<
         bps_avg: f64,
         bps_current: f64,
         user_data: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int,
+    ) -> bool,
 >;
 pub type ZyppDownloadProblemCallback = ::std::option::Option<
     unsafe extern "C" fn(
@@ -189,8 +186,8 @@ extern "C" {
         kind: RESOLVABLE_KIND,
         status: *mut Status,
     );
-    #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return 1 if solver pass and 0 if it found some dependency issues"]
-    pub fn run_solver(status: *mut Status) -> ::std::os::raw::c_int;
+    #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return true if solver pass and false if it found some dependency issues"]
+    pub fn run_solver(status: *mut Status) -> bool;
     pub fn free_zypp();
     #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory\n @param[out] status (will overwrite existing contents)"]
     pub fn list_repositories(status: *mut Status) -> RepositoryList;
