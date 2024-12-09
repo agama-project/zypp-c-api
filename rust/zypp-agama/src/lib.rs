@@ -2,6 +2,7 @@ use std::{
     ffi::CString,
     os::raw::{c_char, c_uint, c_void},
     ptr::null_mut,
+    sync::{Mutex, MutexGuard},
 };
 
 pub use callbacks::DownloadProgress;
@@ -17,6 +18,7 @@ use helpers::string_from_ptr;
 
 mod callbacks;
 
+#[derive(Debug)]
 pub struct Repository {
     pub enabled: bool,
     pub url: String,
@@ -63,12 +65,39 @@ where
     Some(progress_callback::<F>)
 }
 
-pub fn init_target<F>(root: &str, progress: F) -> Result<(), ZyppError>
+// Mutex for the Zypp C API which is not thread safe.
+// TODO: guard some (global) context instead of ().
+static ZYPP_MUTEX: Mutex<()> = Mutex::new(());
+pub struct Zypp<'a> {
+    // underscore prevents
+    //     warning: field `guard` is never read
+    _guard: MutexGuard<'a, ()>,
+}
+
+impl<'a> Zypp<'a> {
+    pub fn new() -> Self {
+        let z = Self {
+            _guard: ZYPP_MUTEX.lock().unwrap(),
+        };
+        // println!("creating Zypp");
+        z
+    }
+}
+
+impl Drop for Zypp<'_> {
+    fn drop(&mut self) {
+        // println!("dropping Zypp");
+        // TODO: call free_zypp here
+    }
+}
+
+pub fn init_target<F>(root: &str, progress: F) -> Result<Zypp, ZyppError>
 where
     // cannot be FnOnce, the whole point of progress callbacks is
     // to provide feedback multiple times
     F: FnMut(String, u32, u32),
 {
+    let z = Zypp::new();
     unsafe {
         let mut closure = progress;
         let cb = get_progress_callback(&closure);
@@ -84,11 +113,12 @@ where
             cb,
             &mut closure as *mut _ as *mut c_void,
         );
-        return helpers::status_to_result_void(status);
+        helpers::status_to_result_void(status)?;
     }
+    Ok(z)
 }
 
-pub fn list_repositories() -> Result<Vec<Repository>, ZyppError> {
+pub fn list_repositories(_z: &Zypp) -> Result<Vec<Repository>, ZyppError> {
     let mut repos_v = vec![];
 
     unsafe {
@@ -333,16 +363,54 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
+    use std::process::Command;
 
     fn progress_cb(_text: String, _stage: u32, _total: u32) {
         // for test do nothing..maybe some check of callbacks?
     }
 
     #[test]
-    fn it_works() {
-        init_target("/", progress_cb).unwrap();
-        let repos = list_repositories().unwrap();
-        println!("{} repos", repos.len());
-        assert!(repos.len() > 10); // FIXME: just my quick validation
+    fn init_target_ok() -> Result<(), Box<dyn Error>> {
+        init_target("/", progress_cb)?;
+        // TODO: free_zypp, don't leak RepoManager
+        Ok(())
+    }
+
+    #[test]
+    fn init_target_err() -> Result<(), Box<dyn Error>> {
+        let result = init_target("/nosuchdir", progress_cb);
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    /*
+    #[test]
+    fn init_target_deadlock() -> Result<(), Box<dyn Error>> {
+        let _z1 = init_target("/", progress_cb)?;
+        let _z2 = init_target("/mnt", progress_cb)?;
+        Ok(())
+    }
+    */
+
+    // Init a RPM database in *root*, or do nothing if it exists
+    fn init_rpmdb(root: &str) -> Result<(), Box<dyn Error>> {
+        Command::new("rpmdb")
+            .args(["--root", root, "--initdb"])
+            .status()?;
+        Ok(())
+    }
+
+    #[test]
+    fn list_repositories_ok() -> Result<(), Box<dyn Error>> {
+        let cwd = std::env::current_dir()?;
+        let root_buf = cwd.join("fixtures/zypp_root");
+        let root = root_buf.to_str().expect("CWD is not UTF-8");
+
+        init_rpmdb(root)?;
+        let zypp = init_target(root, progress_cb)?;
+        let repos = list_repositories(&zypp)?;
+        assert!(repos.len() == 1);
+        Ok(())
     }
 }

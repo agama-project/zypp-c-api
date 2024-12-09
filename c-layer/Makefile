@@ -9,6 +9,8 @@ all: libagama-zypp.a
 clean:
 	rm -vf *.o *.a
 
+check:
+
 libagama-zypp.a: $(OBJ)
 	$(AR) -crs $@ $^
 
