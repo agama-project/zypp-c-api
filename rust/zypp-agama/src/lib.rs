@@ -17,6 +17,7 @@ use helpers::string_from_ptr;
 
 mod callbacks;
 
+#[derive(Debug)]
 pub struct Repository {
     pub url: String,
     pub alias: String,
@@ -261,6 +262,7 @@ pub fn run_solver() -> Result<bool, ZyppError> {
 mod tests {
     use super::*;
     use std::error::Error;
+    use std::process::Command;
 
     fn progress_cb(_text: String, _stage: u32, _total: u32) {
         // for test do nothing..maybe some check of callbacks?
@@ -284,11 +286,24 @@ mod tests {
         Ok(())
     }
 
+    // Init a RPM database in *root*, or do nothing if it exists
+    fn init_rpmdb(root: &str) -> Result<(), Box<dyn Error>> {
+        Command::new("rpmdb")
+            .args(["--root", root, "--initdb"])
+            .status()?;
+        Ok(())
+    }
+
     #[test]
-    fn it_works() {
-        init_target("/", progress_cb).unwrap();
-        let repos = list_repositories().unwrap();
-        println!("{} repos", repos.len());
-        assert!(repos.len() > 10); // FIXME: just my quick validation
+    fn list_repositories_ok() -> Result<(), Box<dyn Error>> {
+        let cwd = std::env::current_dir()?;
+        let root_buf = cwd.join("fixtures/zypp_root");
+        let root = root_buf.to_str().expect("CWD is not UTF-8");
+
+        init_rpmdb(root)?;
+        init_target(root, progress_cb)?;
+        let repos = list_repositories()?;
+        assert!(repos.len() == 1);
+        Ok(())
     }
 }
