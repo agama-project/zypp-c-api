@@ -1,5 +1,7 @@
 use std::{error::Error, fmt};
 
+pub type ZyppResult<A> = Result<A, ZyppError>;
+
 #[derive(Debug)]
 pub struct ZyppError {
     details: String

@@ -79,6 +79,7 @@ static zypp::ZYpp::Ptr zypp_ptr() {
   return NULL;
 }
 
+// TODO: split init target into set of repo manager, initialize target and load target and merge it in rust
 void init_target(const char *root, struct Status *status, ProgressCallback progress, void *user_data) noexcept {
   const std::string root_str(root);
 

@@ -15,6 +15,16 @@ pub enum ProblemResponse {
     IGNORE,
 }
 
+impl Into<PROBLEM_RESPONSE> for ProblemResponse {
+    fn into(self) -> PROBLEM_RESPONSE {
+        match self {
+            ProblemResponse::ABORT => PROBLEM_RESPONSE_PROBLEM_ABORT,
+            ProblemResponse::IGNORE => PROBLEM_RESPONSE_PROBLEM_IGNORE,
+            ProblemResponse::RETRY => PROBLEM_RESPONSE_PROBLEM_RETRY,
+        }
+    }
+}
+
 // generic trait to 
 pub trait DownloadProgress {
     // callback when download start
@@ -86,11 +96,7 @@ where
 {
     let user_data = &mut *(user_data as *mut F);
     let res = user_data(string_from_ptr(url), error.into(), string_from_ptr(description));
-    match res {
-      ProblemResponse::ABORT => PROBLEM_RESPONSE_PROBLEM_ABORT,
-      ProblemResponse::IGNORE => PROBLEM_RESPONSE_PROBLEM_IGNORE,
-      ProblemResponse::RETRY => PROBLEM_RESPONSE_PROBLEM_RETRY,
-    }
+    res.into()
 }
 
 fn get_download_progress_problem<F>(_closure: &F) -> ZyppDownloadProblemCallback
