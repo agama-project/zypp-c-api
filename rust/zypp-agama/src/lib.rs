@@ -1,6 +1,7 @@
 use std::{
     ffi::CString,
     os::raw::{c_char, c_uint, c_void},
+    sync::{Mutex, MutexGuard},
 };
 
 pub use callbacks::DownloadProgress;
@@ -64,12 +65,39 @@ where
     Some(progress_callback::<F>)
 }
 
-pub fn init_target<F>(root: &str, progress: F) -> ZyppResult<()>
+// Mutex for the Zypp C API which is not thread safe.
+// TODO: guard some (global) context instead of ().
+static ZYPP_MUTEX: Mutex<()> = Mutex::new(());
+pub struct Zypp<'a> {
+    // underscore prevents
+    //     warning: field `guard` is never read
+    _guard: MutexGuard<'a, ()>,
+}
+
+impl<'a> Zypp<'a> {
+    pub fn new() -> Self {
+        let z = Self {
+            _guard: ZYPP_MUTEX.lock().unwrap(),
+        };
+        // println!("creating Zypp");
+        z
+    }
+}
+
+impl Drop for Zypp<'_> {
+    fn drop(&mut self) {
+        // println!("dropping Zypp");
+        // TODO: call free_zypp here
+    }
+}
+
+pub fn init_target<F>(root: &str, progress: F) -> ZyppResult<Zypp>
 where
     // cannot be FnOnce, the whole point of progress callbacks is
     // to provide feedback multiple times
     F: FnMut(String, u32, u32),
 {
+    let z = Zypp::new();
     unsafe {
         let mut closure = progress;
         let cb = get_progress_callback(&closure);
@@ -82,11 +110,12 @@ where
             cb,
             &mut closure as *mut _ as *mut c_void,
         );
-        return helpers::status_to_result_void(status);
+        helpers::status_to_result_void(status)?;
     }
+    Ok(z)
 }
 
-pub fn list_repositories() -> ZyppResult<Vec<Repository>> {
+pub fn list_repositories(_z: &Zypp) -> ZyppResult<Vec<Repository>> {
     let mut repos_v = vec![];
 
     unsafe {
@@ -331,11 +360,11 @@ pub fn run_solver() -> ZyppResult<bool> {
 }
 
 // high level method to load source
-pub fn load_source<F>(progress: F) -> ZyppResult<()>
+pub fn load_source<F>(z: &Zypp, progress: F) -> ZyppResult<()>
 where
     F: Fn(i64, String) -> bool,
 {
-    let repos = list_repositories()?;
+    let repos = list_repositories(z)?;
     let enabled_repos: Vec<&Repository> = repos.iter().filter(|r| r.enabled).collect();
     // TODO: this step logic for progress can be enclosed to own struct
     let mut percent: f64 = 0.0;
@@ -397,10 +426,6 @@ mod tests {
 
     #[test]
     fn init_target_ok() -> Result<(), Box<dyn Error>> {
-        println!("> These tests cannot be run in multiple threads");
-        println!("> because libzypp is not thread safe, and we do not mutex it (yet)");
-        println!("> Use `make check` which calls `cargo test -- --test-threads=1`");
-
         init_target("/", progress_cb)?;
         // TODO: free_zypp, don't leak RepoManager
         Ok(())
@@ -412,6 +437,15 @@ mod tests {
         assert!(result.is_err());
         Ok(())
     }
+
+    /*
+    #[test]
+    fn init_target_deadlock() -> Result<(), Box<dyn Error>> {
+        let _z1 = init_target("/", progress_cb)?;
+        let _z2 = init_target("/mnt", progress_cb)?;
+        Ok(())
+    }
+    */
 
     // Init a RPM database in *root*, or do nothing if it exists
     fn init_rpmdb(root: &str) -> Result<(), Box<dyn Error>> {
@@ -428,8 +462,8 @@ mod tests {
         let root = root_buf.to_str().expect("CWD is not UTF-8");
 
         init_rpmdb(root)?;
-        init_target(root, progress_cb)?;
-        let repos = list_repositories()?;
+        let zypp = init_target(root, progress_cb)?;
+        let repos = list_repositories(&zypp)?;
         assert!(repos.len() == 1);
         Ok(())
     }

@@ -56,17 +56,17 @@ fn main() -> Result<(), zypp_agama::ZyppError> {
     let default_root = "/".to_owned();
     let root = args.get(1).unwrap_or(&default_root);
 
-    zypp_agama::init_target(root, |text, step, total| {
+    let z = zypp_agama::init_target(root, |text, step, total| {
         println!("Initializing target: {}/{} - {}", step, total, text)
     })?;
 
     println!("List of existing repositories:");
-    let repos = zypp_agama::list_repositories()?;
+    let repos = zypp_agama::list_repositories(&z)?;
     for repo in repos {
         println!("- Repo {} with url {}", repo.user_name, repo.url);
     }
 
-    zypp_agama::load_source(|percent, text| {
+    zypp_agama::load_source(&z, |percent, text| {
         println!("{}%: {}", percent, text);
         true
     })?;
