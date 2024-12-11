@@ -15,6 +15,7 @@ use helpers::string_from_ptr;
 
 mod callbacks;
 
+#[derive(Debug)]
 pub struct Repository {
     pub enabled: bool,
     pub url: String,
@@ -297,16 +298,49 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
+    use std::process::Command;
 
     fn progress_cb(_text: String, _stage: u32, _total: u32) {
         // for test do nothing..maybe some check of callbacks?
     }
 
     #[test]
-    fn it_works() {
-        init_target("/", progress_cb).unwrap();
-        let repos = list_repositories().unwrap();
-        println!("{} repos", repos.len());
-        assert!(repos.len() > 10); // FIXME: just my quick validation
+    fn init_target_ok() -> Result<(), Box<dyn Error>> {
+        println!("> These tests cannot be run in multiple threads");
+        println!("> because libzypp is not thread safe, and we do not mutex it (yet)");
+        println!("> Use `make check` which calls `cargo test -- --test-threads=1`");
+
+        init_target("/", progress_cb)?;
+        // TODO: free_zypp, don't leak RepoManager
+        Ok(())
+    }
+
+    #[test]
+    fn init_target_err() -> Result<(), Box<dyn Error>> {
+        let result = init_target("/nosuchdir", progress_cb);
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    // Init a RPM database in *root*, or do nothing if it exists
+    fn init_rpmdb(root: &str) -> Result<(), Box<dyn Error>> {
+        Command::new("rpmdb")
+            .args(["--root", root, "--initdb"])
+            .status()?;
+        Ok(())
+    }
+
+    #[test]
+    fn list_repositories_ok() -> Result<(), Box<dyn Error>> {
+        let cwd = std::env::current_dir()?;
+        let root_buf = cwd.join("fixtures/zypp_root");
+        let root = root_buf.to_str().expect("CWD is not UTF-8");
+
+        init_rpmdb(root)?;
+        init_target(root, progress_cb)?;
+        let repos = list_repositories()?;
+        assert!(repos.len() == 1);
+        Ok(())
     }
 }
