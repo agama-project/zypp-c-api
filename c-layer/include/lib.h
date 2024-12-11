@@ -102,6 +102,7 @@ struct PatternInfos {
 };
 
 struct PatternInfos get_patterns_info(struct PatternNames names, struct Status* status) noexcept;
+void free_pattern_infos(const struct PatternInfos *infos) noexcept;
 
 /// Runs solver
 /// @param[out] status (will overwrite existing contents)

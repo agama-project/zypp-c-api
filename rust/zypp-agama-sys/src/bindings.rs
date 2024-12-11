@@ -253,6 +253,7 @@ extern "C" {
         status: *mut Status,
     );
     pub fn get_patterns_info(names: PatternNames, status: *mut Status) -> PatternInfos;
+    pub fn free_pattern_infos(infos: *const PatternInfos);
     #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return true if solver pass and false if it found some dependency issues"]
     pub fn run_solver(status: *mut Status) -> bool;
     pub fn free_zypp();

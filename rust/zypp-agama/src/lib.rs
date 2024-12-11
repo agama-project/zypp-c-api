@@ -303,7 +303,7 @@ pub fn patterns_info(names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
             };
             r_infos.push(r_info);
         }
-
+        zypp_agama_sys::free_pattern_infos(&infos);
         Ok(r_infos)
     }
 }

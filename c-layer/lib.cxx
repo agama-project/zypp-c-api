@@ -11,6 +11,7 @@
 #include <zypp/RepoManager.h>
 #include <zypp/RepoManagerFlags.h>
 #include <zypp/ResKind.h>
+#include <zypp/ResObject.h>
 #include <zypp/ResStatus.h>
 #include <zypp/Resolvable.h>
 #include <zypp/ZYpp.h>
@@ -174,40 +175,25 @@ void resolvable_unselect(const char* name, enum RESOLVABLE_KIND kind, struct Sta
   status->error = NULL;
 }
 
-// Filter for pool items
-struct PatternNamesFilter {
-  std::set<std::string> &names;
-
-  PatternNamesFilter(std::set<std::string> &names_) : names(names_) {}
-
-  // The main filtering function, returns true/false for each resolvable in the pool
-	// whether it matches the required criteria.
-	bool operator()(const zypp::PoolItem &r) const {
-    if (r->kind() != zypp::ResKind::pattern) {
-      return false;
-    }
-
-    auto found  = names.find(r->name());
-    return found != names.end();
-  }
-};
-
 struct PatternInfos get_patterns_info(struct PatternNames names, struct Status* status) noexcept {
   std::set<std::string> pattern_names;
   for (unsigned i = 0; i < names.size; ++i){
     pattern_names.insert(names.names[i]);
   }
-  PatternNamesFilter filter(pattern_names);
   
   PatternInfos result = {
     (struct PatternInfo*) malloc(names.size * sizeof(PatternInfo)),
     0 // initialize with zero and increase after each successfull add of pattern info
   };
-  // FIXME: this won't work and write out of bounds if there are more versions of identical pattern
-  // some sanitization will be needed ( e.g. use only for current arch and with the highest version)
-  for (const auto &r : zypp::ResPool::instance().filter(filter) ){
+
+  for (unsigned j = 0; j < names.size; ++j){
+    zypp::ui::Selectable::constPtr selectable = zypp::ui::Selectable::get(zypp::ResKind::pattern, names.names[j]);
+    // we do not find any pattern
+    if (!selectable.get())
+      continue;
+
     // we know here that we get only patterns
-    zypp::Pattern::constPtr pattern = zypp::asKind<zypp::Pattern>(r.resolvable());
+    zypp::Pattern::constPtr pattern = zypp::asKind<zypp::Pattern>(selectable->theObj().resolvable());
     unsigned i = result.size;
     result.infos[i].name = strdup(pattern->name().c_str());
     result.infos[i].category = strdup(pattern->category().c_str());
@@ -215,7 +201,7 @@ struct PatternInfos get_patterns_info(struct PatternNames names, struct Status* 
     result.infos[i].icon = strdup(pattern->icon().c_str());
     result.infos[i].summary = strdup(pattern->summary().c_str());
     result.infos[i].order = strdup(pattern->order().c_str());
-    auto &status = r.status();
+    auto &status = selectable->theObj().status();
     if (status.isToBeInstalled()) {
       switch (status.getTransactByValue()) {
         case zypp::ResStatus::TransactByValue::USER:
@@ -238,6 +224,18 @@ struct PatternInfos get_patterns_info(struct PatternNames names, struct Status* 
   status->state = Status::STATE_SUCCEED;
   status->error = NULL;
   return result;
+}
+
+void free_pattern_infos(const struct PatternInfos *infos) noexcept {
+  for (unsigned i = 0; i < infos->size; ++i){
+    free(infos->infos[i].name);
+    free(infos->infos[i].category);
+    free(infos->infos[i].icon);
+    free(infos->infos[i].description);
+    free(infos->infos[i].summary);
+    free(infos->infos[i].order);
+  }
+  free(infos->infos);
 }
 
 bool run_solver(struct Status* status) noexcept {
