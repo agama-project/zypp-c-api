@@ -8,6 +8,8 @@ all: main
 clean:
 	rm -vf *.o main
 
+check:
+
 main: $(OBJ)
 	$(CC) -o $@ $^ ../c-layer/libagama-zypp.a $(CFLAGS)
 
