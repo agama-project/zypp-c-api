@@ -16,6 +16,7 @@ const _: () = {
     ["Offset of field: ProgressData::value"][::std::mem::offset_of!(ProgressData, value) - 0usize];
     ["Offset of field: ProgressData::name"][::std::mem::offset_of!(ProgressData, name) - 8usize];
 };
+#[doc = " @return true to continue, false to abort. Can be ignored"]
 pub type ZyppProgressCallback = ::std::option::Option<
     unsafe extern "C" fn(zypp_data: ProgressData, user_data: *mut ::std::os::raw::c_void) -> bool,
 >;
@@ -123,6 +124,71 @@ pub const RESOLVABLE_KIND_RESOLVABLE_PACKAGE: RESOLVABLE_KIND = 2;
 pub const RESOLVABLE_KIND_RESOLVABLE_SRCPACKAGE: RESOLVABLE_KIND = 3;
 pub const RESOLVABLE_KIND_RESOLVABLE_PATTERN: RESOLVABLE_KIND = 4;
 pub type RESOLVABLE_KIND = ::std::os::raw::c_uint;
+pub const RESOLVABLE_SELECTED_NOT_SELECTED: RESOLVABLE_SELECTED = 0;
+pub const RESOLVABLE_SELECTED_USER_SELECTED: RESOLVABLE_SELECTED = 1;
+pub const RESOLVABLE_SELECTED_INSTALLATION_SELECTED: RESOLVABLE_SELECTED = 2;
+pub const RESOLVABLE_SELECTED_SOLVER_SELECTED: RESOLVABLE_SELECTED = 3;
+pub type RESOLVABLE_SELECTED = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PatternNames {
+    pub names: *const *const ::std::os::raw::c_char,
+    pub size: ::std::os::raw::c_uint,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of PatternNames"][::std::mem::size_of::<PatternNames>() - 16usize];
+    ["Alignment of PatternNames"][::std::mem::align_of::<PatternNames>() - 8usize];
+    ["Offset of field: PatternNames::names"][::std::mem::offset_of!(PatternNames, names) - 0usize];
+    ["Offset of field: PatternNames::size"][::std::mem::offset_of!(PatternNames, size) - 8usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PatternInfo {
+    #[doc = "< owned"]
+    pub name: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub category: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub icon: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub description: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub summary: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub order: *mut ::std::os::raw::c_char,
+    pub selected: RESOLVABLE_SELECTED,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of PatternInfo"][::std::mem::size_of::<PatternInfo>() - 56usize];
+    ["Alignment of PatternInfo"][::std::mem::align_of::<PatternInfo>() - 8usize];
+    ["Offset of field: PatternInfo::name"][::std::mem::offset_of!(PatternInfo, name) - 0usize];
+    ["Offset of field: PatternInfo::category"]
+        [::std::mem::offset_of!(PatternInfo, category) - 8usize];
+    ["Offset of field: PatternInfo::icon"][::std::mem::offset_of!(PatternInfo, icon) - 16usize];
+    ["Offset of field: PatternInfo::description"]
+        [::std::mem::offset_of!(PatternInfo, description) - 24usize];
+    ["Offset of field: PatternInfo::summary"]
+        [::std::mem::offset_of!(PatternInfo, summary) - 32usize];
+    ["Offset of field: PatternInfo::order"][::std::mem::offset_of!(PatternInfo, order) - 40usize];
+    ["Offset of field: PatternInfo::selected"]
+        [::std::mem::offset_of!(PatternInfo, selected) - 48usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PatternInfos {
+    #[doc = "< owned, *size* items"]
+    pub infos: *mut PatternInfo,
+    pub size: ::std::os::raw::c_uint,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of PatternInfos"][::std::mem::size_of::<PatternInfos>() - 16usize];
+    ["Alignment of PatternInfos"][::std::mem::align_of::<PatternInfos>() - 8usize];
+    ["Offset of field: PatternInfos::infos"][::std::mem::offset_of!(PatternInfos, infos) - 0usize];
+    ["Offset of field: PatternInfos::size"][::std::mem::offset_of!(PatternInfos, size) - 8usize];
+};
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Repository {
@@ -186,6 +252,7 @@ extern "C" {
         kind: RESOLVABLE_KIND,
         status: *mut Status,
     );
+    pub fn get_patterns_info(names: PatternNames, status: *mut Status) -> PatternInfos;
     #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return true if solver pass and false if it found some dependency issues"]
     pub fn run_solver(status: *mut Status) -> bool;
     pub fn free_zypp();

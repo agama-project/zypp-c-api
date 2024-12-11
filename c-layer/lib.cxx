@@ -4,10 +4,13 @@
 #include "callbacks.hxx"
 
 #include <cstddef>
+#include <cstdlib>
 #include <zypp-core/Url.h>
+#include <zypp/Pattern.h>
 #include <zypp/RepoInfo.h>
 #include <zypp/RepoManager.h>
 #include <zypp/RepoManagerFlags.h>
+#include <zypp/ResKind.h>
 #include <zypp/ResStatus.h>
 #include <zypp/Resolvable.h>
 #include <zypp/ZYpp.h>
@@ -169,6 +172,72 @@ void resolvable_unselect(const char* name, enum RESOLVABLE_KIND kind, struct Sta
   selectable->unset(zypp::ResStatus::USER);
   status->state = Status::STATE_SUCCEED;
   status->error = NULL;
+}
+
+// Filter for pool items
+struct PatternNamesFilter {
+  std::set<std::string> &names;
+
+  PatternNamesFilter(std::set<std::string> &names_) : names(names_) {}
+
+  // The main filtering function, returns true/false for each resolvable in the pool
+	// whether it matches the required criteria.
+	bool operator()(const zypp::PoolItem &r) const {
+    if (r->kind() != zypp::ResKind::pattern) {
+      return false;
+    }
+
+    auto found  = names.find(r->name());
+    return found != names.end();
+  }
+};
+
+struct PatternInfos get_patterns_info(struct PatternNames names, struct Status* status) noexcept {
+  std::set<std::string> pattern_names;
+  for (unsigned i = 0; i < names.size; ++i){
+    pattern_names.insert(names.names[i]);
+  }
+  PatternNamesFilter filter(pattern_names);
+  
+  PatternInfos result = {
+    (struct PatternInfo*) malloc(names.size * sizeof(PatternInfo)),
+    0 // initialize with zero and increase after each successfull add of pattern info
+  };
+  // FIXME: this won't work and write out of bounds if there are more versions of identical pattern
+  // some sanitization will be needed ( e.g. use only for current arch and with the highest version)
+  for (const auto &r : zypp::ResPool::instance().filter(filter) ){
+    // we know here that we get only patterns
+    zypp::Pattern::constPtr pattern = zypp::asKind<zypp::Pattern>(r.resolvable());
+    unsigned i = result.size;
+    result.infos[i].name = strdup(pattern->name().c_str());
+    result.infos[i].category = strdup(pattern->category().c_str());
+    result.infos[i].description = strdup(pattern->description().c_str());
+    result.infos[i].icon = strdup(pattern->icon().c_str());
+    result.infos[i].summary = strdup(pattern->summary().c_str());
+    result.infos[i].order = strdup(pattern->order().c_str());
+    auto &status = r.status();
+    if (status.isToBeInstalled()) {
+      switch (status.getTransactByValue()) {
+        case zypp::ResStatus::TransactByValue::USER:
+          result.infos[i].selected = RESOLVABLE_SELECTED::USER_SELECTED;
+          break;
+        case zypp::ResStatus::TransactByValue::APPL_HIGH:
+        case zypp::ResStatus::TransactByValue::APPL_LOW:
+          result.infos[i].selected = RESOLVABLE_SELECTED::INSTALLATION_SELECTED;
+          break;
+        case zypp::ResStatus::TransactByValue::SOLVER:
+          result.infos[i].selected = RESOLVABLE_SELECTED::SOLVER_SELECTED;
+          break;
+      }
+    } else {
+      result.infos[i].selected = RESOLVABLE_SELECTED::NOT_SELECTED;
+    }
+    result.size++;
+	};
+
+  status->state = Status::STATE_SUCCEED;
+  status->error = NULL;
+  return result;
 }
 
 bool run_solver(struct Status* status) noexcept {

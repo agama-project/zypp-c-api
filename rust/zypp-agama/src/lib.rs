@@ -5,7 +5,7 @@ use std::{
 
 pub use callbacks::DownloadProgress;
 use errors::ZyppResult;
-use zypp_agama_sys::{ProgressCallback, ProgressData, Status, ZyppProgressCallback};
+use zypp_agama_sys::{get_patterns_info, PatternNames, ProgressCallback, ProgressData, Status, ZyppProgressCallback};
 
 pub mod errors;
 pub use errors::ZyppError;
@@ -236,6 +236,75 @@ pub fn unselect_resolvable(name: &str, kind: ResolvableKind) -> ZyppResult<()> {
         let c_kind = kind.into();
         zypp_agama_sys::resolvable_unselect(c_name.as_ptr(), c_kind, status_ptr);
         return helpers::status_to_result_void(status);
+    }
+}
+
+#[derive(Debug)]
+pub enum ResolvableSelected {
+    NotSelected,
+    UserSelected,
+    InstallationSelected,
+    SolverSelected,
+}
+
+impl From<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
+    fn from(value: zypp_agama_sys::RESOLVABLE_SELECTED) -> Self {
+        match value {
+            zypp_agama_sys::RESOLVABLE_SELECTED_NOT_SELECTED => Self::NotSelected,
+            zypp_agama_sys::RESOLVABLE_SELECTED_USER_SELECTED => Self::UserSelected,
+            zypp_agama_sys::RESOLVABLE_SELECTED_INSTALLATION_SELECTED => Self::InstallationSelected,
+            zypp_agama_sys::RESOLVABLE_SELECTED_SOLVER_SELECTED => Self::SolverSelected,
+            _ => Self::SolverSelected, // XXX: should not happen
+        }
+    }
+}
+
+// TODO: should we add also e.g. serd serializers here?
+#[derive(Debug)]
+pub struct PatternInfo {
+    pub name: String,
+    pub category: String,
+    pub icon: String,
+    pub description: String,
+    pub summary: String,
+    pub order: String,
+    pub selected: ResolvableSelected,
+}
+
+pub fn patterns_info(names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
+    unsafe {
+        let mut status: Status = Status::default();
+        let status_ptr = &mut status as *mut _;
+        let c_names: Vec<CString> = names.iter()
+            .map(|s| CString::new(*s).expect("CString failed")).collect();
+        let c_ptr_names: Vec<*const i8> = c_names.iter().map( |c| c.as_c_str().as_ptr()).collect();
+        let pattern_names = PatternNames {
+            size: names.len() as u32,
+            names: c_ptr_names.as_ptr(),
+        };
+        let infos = get_patterns_info(pattern_names, status_ptr);
+        let res = helpers::status_to_result_void(status);
+        // in case of error do not inspect result of call and finish early
+        if let Err(e) = res {
+            return Err(e);
+        }
+
+        let mut r_infos = Vec::with_capacity(infos.size as usize);
+        for i in 0..infos.size as usize {
+            let c_info = *(infos.infos.add(i));
+            let r_info = PatternInfo {
+                name: string_from_ptr(c_info.name),
+                category: string_from_ptr(c_info.category),
+                icon: string_from_ptr(c_info.icon),
+                description: string_from_ptr(c_info.description),
+                summary: string_from_ptr(c_info.summary),
+                order: string_from_ptr(c_info.order),
+                selected: c_info.selected.into(),
+            };
+            r_infos.push(r_info);
+        }
+
+        Ok(r_infos)
     }
 }
 
