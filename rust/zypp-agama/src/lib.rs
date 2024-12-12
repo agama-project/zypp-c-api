@@ -5,7 +5,9 @@ use std::{
 
 pub use callbacks::DownloadProgress;
 use errors::ZyppResult;
-use zypp_agama_sys::{get_patterns_info, PatternNames, ProgressCallback, ProgressData, Status, ZyppProgressCallback};
+use zypp_agama_sys::{
+    get_patterns_info, PatternNames, ProgressCallback, ProgressData, Status, ZyppProgressCallback,
+};
 
 pub mod errors;
 pub use errors::ZyppError;
@@ -252,9 +254,9 @@ impl From<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
         match value {
             zypp_agama_sys::RESOLVABLE_SELECTED_NOT_SELECTED => Self::NotSelected,
             zypp_agama_sys::RESOLVABLE_SELECTED_USER_SELECTED => Self::UserSelected,
-            zypp_agama_sys::RESOLVABLE_SELECTED_INSTALLATION_SELECTED => Self::InstallationSelected,
+            zypp_agama_sys::RESOLVABLE_SELECTED_APPLICATION_SELECTED => Self::InstallationSelected,
             zypp_agama_sys::RESOLVABLE_SELECTED_SOLVER_SELECTED => Self::SolverSelected,
-            _ => Self::SolverSelected, // XXX: should not happen
+            _ => panic!("Unknown value for resolvable_selected {}", value),
         }
     }
 }
@@ -275,9 +277,11 @@ pub fn patterns_info(names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
     unsafe {
         let mut status: Status = Status::default();
         let status_ptr = &mut status as *mut _;
-        let c_names: Vec<CString> = names.iter()
-            .map(|s| CString::new(*s).expect("CString failed")).collect();
-        let c_ptr_names: Vec<*const i8> = c_names.iter().map( |c| c.as_c_str().as_ptr()).collect();
+        let c_names: Vec<CString> = names
+            .iter()
+            .map(|s| CString::new(*s).expect("CString must not contain internal NUL"))
+            .collect();
+        let c_ptr_names: Vec<*const i8> = c_names.iter().map(|c| c.as_c_str().as_ptr()).collect();
         let pattern_names = PatternNames {
             size: names.len() as u32,
             names: c_ptr_names.as_ptr(),

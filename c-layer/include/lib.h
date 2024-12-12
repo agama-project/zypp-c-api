@@ -56,60 +56,60 @@ enum RESOLVABLE_KIND {
 /// @param kind kind of resolvable
 /// @param[out] status (will overwrite existing contents)
 // TODO: add RESOLVABLE_SELECTED value
-void resolvable_select(const char* name, enum RESOLVABLE_KIND kind, struct Status* status) noexcept;
+void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, struct Status *status) noexcept;
 
 /// Unselect resolvable for installation. It can still be installed as dependency.
 /// @param name resolvable name
 /// @param kind kind of resolvable
 /// @param[out] status (will overwrite existing contents)
 // TODO: add RESOLVABLE_SELECTED value
-void resolvable_unselect(const char* name, enum RESOLVABLE_KIND kind, struct Status* status) noexcept;
+void resolvable_unselect(const char *name, enum RESOLVABLE_KIND kind, struct Status *status) noexcept;
 
 enum RESOLVABLE_SELECTED {
-  // resolvable won't be installed
+  /// resolvable won't be installed
   NOT_SELECTED,
-  // user select resolvable for installation
-  // match TransactByValue::USER
-  USER_SELECTED,
-  // installation proposal selects resolvable
-  // match TransactByValue::APPL_{LOW,HIGH} we do not need both, so we use just one value
-  INSTALLATION_SELECTED,
-  // dependency solver select resolvable
-  // match TransactByValue::SOLVER
+  /// dependency solver select resolvable
+  /// match TransactByValue::SOLVER
   SOLVER_SELECTED,
+  /// installation proposal selects resolvable
+  /// match TransactByValue::APPL_{LOW,HIGH} we do not need both, so we use just one value
+  APPLICATION_SELECTED,
+  /// user select resolvable for installation
+  /// match TransactByValue::USER
+  USER_SELECTED,
 };
 
 struct PatternNames {
-  // names of patterns
-  const char * const * const names;
-  // size of names array
+  /// names of patterns
+  const char *const *const names;
+  /// size of names array
   unsigned size;
 };
 
 struct PatternInfo {
-  char* name; ///< owned
-  char* category; ///< owned
-  char* icon; ///< owned
-  char* description; ///< owned
-  char* summary; ///< owned
-  char* order; ///< owned
+  char *name;        ///< owned
+  char *category;    ///< owned
+  char *icon;        ///< owned
+  char *description; ///< owned
+  char *summary;     ///< owned
+  char *order;       ///< owned
   enum RESOLVABLE_SELECTED selected;
 };
 
 struct PatternInfos {
-  struct PatternInfo* infos; ///< owned, *size* items
+  struct PatternInfo *infos; ///< owned, *size* items
   unsigned size;
 };
 
-struct PatternInfos get_patterns_info(struct PatternNames names, struct Status* status) noexcept;
+struct PatternInfos get_patterns_info(struct PatternNames names, struct Status *status) noexcept;
 void free_pattern_infos(const struct PatternInfos *infos) noexcept;
 
 /// Runs solver
 /// @param[out] status (will overwrite existing contents)
 /// @return true if solver pass and false if it found some dependency issues
-bool run_solver(struct Status* status) noexcept;
+bool run_solver(struct Status *status) noexcept;
 
-// the last call that will free all pointers to zypp holded by agama
+/// the last call that will free all pointers to zypp holded by agama
 void free_zypp() noexcept;
 
 #ifdef __cplusplus

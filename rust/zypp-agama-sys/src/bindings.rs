@@ -124,15 +124,21 @@ pub const RESOLVABLE_KIND_RESOLVABLE_PACKAGE: RESOLVABLE_KIND = 2;
 pub const RESOLVABLE_KIND_RESOLVABLE_SRCPACKAGE: RESOLVABLE_KIND = 3;
 pub const RESOLVABLE_KIND_RESOLVABLE_PATTERN: RESOLVABLE_KIND = 4;
 pub type RESOLVABLE_KIND = ::std::os::raw::c_uint;
+#[doc = " resolvable won't be installed"]
 pub const RESOLVABLE_SELECTED_NOT_SELECTED: RESOLVABLE_SELECTED = 0;
-pub const RESOLVABLE_SELECTED_USER_SELECTED: RESOLVABLE_SELECTED = 1;
-pub const RESOLVABLE_SELECTED_INSTALLATION_SELECTED: RESOLVABLE_SELECTED = 2;
-pub const RESOLVABLE_SELECTED_SOLVER_SELECTED: RESOLVABLE_SELECTED = 3;
+#[doc = " dependency solver select resolvable\n match TransactByValue::SOLVER"]
+pub const RESOLVABLE_SELECTED_SOLVER_SELECTED: RESOLVABLE_SELECTED = 1;
+#[doc = " installation proposal selects resolvable\n match TransactByValue::APPL_{LOW,HIGH} we do not need both, so we use just one value"]
+pub const RESOLVABLE_SELECTED_APPLICATION_SELECTED: RESOLVABLE_SELECTED = 2;
+#[doc = " user select resolvable for installation\n match TransactByValue::USER"]
+pub const RESOLVABLE_SELECTED_USER_SELECTED: RESOLVABLE_SELECTED = 3;
 pub type RESOLVABLE_SELECTED = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct PatternNames {
+    #[doc = " names of patterns"]
     pub names: *const *const ::std::os::raw::c_char,
+    #[doc = " size of names array"]
     pub size: ::std::os::raw::c_uint,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
@@ -256,6 +262,7 @@ extern "C" {
     pub fn free_pattern_infos(infos: *const PatternInfos);
     #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return true if solver pass and false if it found some dependency issues"]
     pub fn run_solver(status: *mut Status) -> bool;
+    #[doc = " the last call that will free all pointers to zypp holded by agama"]
     pub fn free_zypp();
     #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory\n @param[out] status (will overwrite existing contents)"]
     pub fn list_repositories(status: *mut Status) -> RepositoryList;
