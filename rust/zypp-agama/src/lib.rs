@@ -13,7 +13,7 @@ pub mod errors;
 pub use errors::ZyppError;
 
 mod helpers;
-use helpers::string_from_ptr;
+use helpers::{status_to_result_void, string_from_ptr};
 
 mod callbacks;
 
@@ -376,6 +376,16 @@ where
     }
     progress(100, "Loading repositories finished".to_string());
     Ok(())
+}
+
+pub fn import_gpg_key(file_path: &str) -> ZyppResult<()> {
+    unsafe {
+        let mut status: Status = Status::default();
+        let status_ptr = &mut status as *mut _;
+        let c_path = CString::new(file_path).expect("CString must not contain internal NUL");
+        zypp_agama_sys::import_gpg_key(c_path.as_ptr(), status_ptr);
+        status_to_result_void(status)
+    }
 }
 
 #[cfg(test)]

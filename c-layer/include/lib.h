@@ -71,7 +71,6 @@ enum RESOLVABLE_SELECTED {
 /// @param kind kind of resolvable
 /// @param who who do selection. If NOT_SELECTED is used, it will be empty operation.
 /// @param[out] status (will overwrite existing contents)
-// TODO: add RESOLVABLE_SELECTED value
 void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who, struct Status *status) noexcept;
 
 /// Unselect resolvable for installation. It can still be installed as dependency.
@@ -79,7 +78,6 @@ void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVA
 /// @param kind kind of resolvable
 /// @param who who do unselection. Only unselect if it is higher or equal level then who do the selection.
 /// @param[out] status (will overwrite existing contents)
-// TODO: add RESOLVABLE_SELECTED value
 void resolvable_unselect(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who, struct Status *status) noexcept;
 
 
@@ -107,6 +105,8 @@ struct PatternInfos {
 
 struct PatternInfos get_patterns_info(struct PatternNames names, struct Status *status) noexcept;
 void free_pattern_infos(const struct PatternInfos *infos) noexcept;
+
+void import_gpg_key(const char* const pathname, struct Status *status) noexcept;
 
 /// Runs solver
 /// @param[out] status (will overwrite existing contents)

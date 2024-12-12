@@ -262,6 +262,7 @@ extern "C" {
     );
     pub fn get_patterns_info(names: PatternNames, status: *mut Status) -> PatternInfos;
     pub fn free_pattern_infos(infos: *const PatternInfos);
+    pub fn import_gpg_key(pathname: *const ::std::os::raw::c_char, status: *mut Status);
     #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return true if solver pass and false if it found some dependency issues"]
     pub fn run_solver(status: *mut Status) -> bool;
     #[doc = " the last call that will free all pointers to zypp holded by agama"]

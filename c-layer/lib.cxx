@@ -5,8 +5,11 @@
 
 #include <cstddef>
 #include <cstdlib>
+#include <exception>
+#include <zypp-core/Pathname.h>
 #include <zypp-core/Url.h>
 #include <zypp/Pattern.h>
+#include <zypp/PublicKey.h>
 #include <zypp/RepoInfo.h>
 #include <zypp/RepoManager.h>
 #include <zypp/RepoManagerFlags.h>
@@ -420,6 +423,19 @@ void build_repository_cache(const char *alias, struct Status *status, ZyppProgre
   } catch (zypp::Exception &excpt) {
     status->state = status->STATE_FAILED;
     status->error = strdup(excpt.asUserString().c_str());
+  }
+}
+
+void import_gpg_key(const char* const pathname, struct Status *status) noexcept {
+  try {
+    zypp::filesystem::Pathname path(pathname);
+    zypp::PublicKey key(path);
+    zypp_ptr()->keyRing()->importKey(key, true); // by default trust keys unless we need to distinguish it
+    status->state = status->STATE_SUCCEED;
+    status->error = NULL;
+  } catch (std::exception e) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup(e.what());
   }
 }
 }
