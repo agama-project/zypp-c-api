@@ -298,11 +298,7 @@ pub fn patterns_info(names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
             names: c_ptr_names.as_ptr(),
         };
         let infos = get_patterns_info(pattern_names, status_ptr);
-        let res = helpers::status_to_result_void(status);
-        // in case of error do not inspect result of call and finish early
-        if let Err(e) = res {
-            return Err(e);
-        }
+        helpers::status_to_result_void(status)?;
 
         let mut r_infos = Vec::with_capacity(infos.size as usize);
         for i in 0..infos.size as usize {

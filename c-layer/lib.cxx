@@ -2,6 +2,7 @@
 #include "callbacks.h"
 #include "callbacks.hxx"
 #include "repository.h"
+#include "helpers.hxx"
 
 #include <cstddef>
 #include <cstdlib>
@@ -149,19 +150,21 @@ static zypp::Resolvable::Kind kind_to_zypp_kind(RESOLVABLE_KIND kind) {
   case RESOLVABLE_PATCH:
     return zypp::Resolvable::Kind::patch;
   }
-  return zypp::Resolvable::Kind::nokind; // should not happen
+  PANIC("Unhandled case in resolvable kind switch %i", kind);
 }
 
-static zypp::ResStatus::TransactByValue convert_selected(enum RESOLVABLE_SELECTED who) {
+static zypp::ResStatus::TransactByValue transactby_from(enum RESOLVABLE_SELECTED who) {
   switch (who) {
     case RESOLVABLE_SELECTED::SOLVER_SELECTED: return zypp::ResStatus::SOLVER;
     case RESOLVABLE_SELECTED::APPLICATION_SELECTED: return zypp::ResStatus::APPL_HIGH;
     case RESOLVABLE_SELECTED::USER_SELECTED: return zypp::ResStatus::USER;
-    case RESOLVABLE_SELECTED::NOT_SELECTED: return zypp::ResStatus::SOLVER; // this should not happen as it should result in early exit
+    case RESOLVABLE_SELECTED::NOT_SELECTED: {
+      PANIC("Unexpected value RESOLVABLE_SELECTED::NOT_SELECTED.");
+    }
   }
 
   // should not happen
-  return zypp::ResStatus::SOLVER;
+  PANIC("Unexpected RESOLVABLE_SELECT value %i", who);
 }
 
 void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who, struct Status *status) noexcept {
@@ -181,7 +184,7 @@ void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVA
 
   status->state = Status::STATE_SUCCEED;
   status->error = NULL;
-  auto value = convert_selected(who);
+  auto value = transactby_from(who);
   selectable->setToInstall(value);
 }
 
@@ -200,18 +203,13 @@ void resolvable_unselect(const char *name, enum RESOLVABLE_KIND kind, enum RESOL
     return;
   }
 
-  auto value = convert_selected(who);
+  auto value = transactby_from(who);
   selectable->unset(value);
   status->state = Status::STATE_SUCCEED;
   status->error = NULL;
 }
 
 struct PatternInfos get_patterns_info(struct PatternNames names, struct Status *status) noexcept {
-  std::set<std::string> pattern_names;
-  for (unsigned i = 0; i < names.size; ++i) {
-    pattern_names.insert(names.names[i]);
-  }
-
   PatternInfos result = {
       (struct PatternInfo *)malloc(names.size * sizeof(PatternInfo)),
       0 // initialize with zero and increase after each successfull add of pattern info
