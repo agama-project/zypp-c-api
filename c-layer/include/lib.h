@@ -88,6 +88,8 @@ struct PatternNames {
   unsigned size;
 };
 
+/// Info from zypp::Pattern.
+/// https://doc.opensuse.org/projects/libzypp/HEAD/classzypp_1_1Pattern.html
 struct PatternInfo {
   char *name;        ///< owned
   char *category;    ///< owned
@@ -103,6 +105,8 @@ struct PatternInfos {
   unsigned size;
 };
 
+/// Get Pattern details.
+/// Unknown patterns are simply omitted from the result. Match by PatternInfo.name, not by index.
 struct PatternInfos get_patterns_info(struct PatternNames names, struct Status *status) noexcept;
 void free_pattern_infos(const struct PatternInfos *infos) noexcept;
 
