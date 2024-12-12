@@ -428,8 +428,9 @@ void import_gpg_key(const char* const pathname, struct Status *status) noexcept 
   try {
     zypp::filesystem::Pathname path(pathname);
     zypp::PublicKey key(path);
-    // false would mean the weird use case of making the key known but rejecting data signed by it.
-    // OTOH unknown keys trigger callbacks which ask about the trust later.
+    // Keys that are unknown (not imported).
+    // or known-but-untrusted (weird in-between state, see KeyRing_test.cc)
+    // will trigger "Trust this?" callbacks.
     bool trusted = true;  
     zypp_ptr()->keyRing()->importKey(key, trusted);
     status->state = status->STATE_SUCCEED;
