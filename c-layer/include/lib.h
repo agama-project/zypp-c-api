@@ -51,19 +51,6 @@ enum RESOLVABLE_KIND {
   RESOLVABLE_PATTERN,
 };
 
-/// Marks resolvable for installation
-/// @param name resolvable name
-/// @param kind kind of resolvable
-/// @param[out] status (will overwrite existing contents)
-// TODO: add RESOLVABLE_SELECTED value
-void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, struct Status *status) noexcept;
-
-/// Unselect resolvable for installation. It can still be installed as dependency.
-/// @param name resolvable name
-/// @param kind kind of resolvable
-/// @param[out] status (will overwrite existing contents)
-// TODO: add RESOLVABLE_SELECTED value
-void resolvable_unselect(const char *name, enum RESOLVABLE_KIND kind, struct Status *status) noexcept;
 
 enum RESOLVABLE_SELECTED {
   /// resolvable won't be installed
@@ -78,6 +65,23 @@ enum RESOLVABLE_SELECTED {
   /// match TransactByValue::USER
   USER_SELECTED,
 };
+
+/// Marks resolvable for installation
+/// @param name resolvable name
+/// @param kind kind of resolvable
+/// @param who who do selection. If NOT_SELECTED is used, it will be empty operation.
+/// @param[out] status (will overwrite existing contents)
+// TODO: add RESOLVABLE_SELECTED value
+void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who, struct Status *status) noexcept;
+
+/// Unselect resolvable for installation. It can still be installed as dependency.
+/// @param name resolvable name
+/// @param kind kind of resolvable
+/// @param who who do unselection. Only unselect if it is higher or equal level then who do the selection.
+/// @param[out] status (will overwrite existing contents)
+// TODO: add RESOLVABLE_SELECTED value
+void resolvable_unselect(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who, struct Status *status) noexcept;
+
 
 struct PatternNames {
   /// names of patterns

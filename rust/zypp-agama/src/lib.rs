@@ -219,44 +219,55 @@ impl Into<zypp_agama_sys::RESOLVABLE_KIND> for ResolvableKind {
     }
 }
 
-pub fn select_resolvable(name: &str, kind: ResolvableKind) -> ZyppResult<()> {
+pub fn select_resolvable(name: &str, kind: ResolvableKind, who: ResolvableSelected) -> ZyppResult<()> {
     unsafe {
         let mut status: Status = Status::default();
         let status_ptr = &mut status as *mut _;
         let c_name = CString::new(name).unwrap();
         let c_kind = kind.into();
-        zypp_agama_sys::resolvable_select(c_name.as_ptr(), c_kind, status_ptr);
+        zypp_agama_sys::resolvable_select(c_name.as_ptr(), c_kind, who.into(), status_ptr);
         return helpers::status_to_result_void(status);
     }
 }
 
-pub fn unselect_resolvable(name: &str, kind: ResolvableKind) -> ZyppResult<()> {
+pub fn unselect_resolvable(name: &str, kind: ResolvableKind, who: ResolvableSelected) -> ZyppResult<()> {
     unsafe {
         let mut status: Status = Status::default();
         let status_ptr = &mut status as *mut _;
         let c_name = CString::new(name).unwrap();
         let c_kind = kind.into();
-        zypp_agama_sys::resolvable_unselect(c_name.as_ptr(), c_kind, status_ptr);
+        zypp_agama_sys::resolvable_unselect(c_name.as_ptr(), c_kind, who.into(), status_ptr);
         return helpers::status_to_result_void(status);
     }
 }
 
 #[derive(Debug)]
 pub enum ResolvableSelected {
-    NotSelected,
-    UserSelected,
-    InstallationSelected,
-    SolverSelected,
+    Not,
+    User,
+    Installation,
+    Solver,
 }
 
 impl From<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
     fn from(value: zypp_agama_sys::RESOLVABLE_SELECTED) -> Self {
         match value {
-            zypp_agama_sys::RESOLVABLE_SELECTED_NOT_SELECTED => Self::NotSelected,
-            zypp_agama_sys::RESOLVABLE_SELECTED_USER_SELECTED => Self::UserSelected,
-            zypp_agama_sys::RESOLVABLE_SELECTED_APPLICATION_SELECTED => Self::InstallationSelected,
-            zypp_agama_sys::RESOLVABLE_SELECTED_SOLVER_SELECTED => Self::SolverSelected,
+            zypp_agama_sys::RESOLVABLE_SELECTED_NOT_SELECTED => Self::Not,
+            zypp_agama_sys::RESOLVABLE_SELECTED_USER_SELECTED => Self::User,
+            zypp_agama_sys::RESOLVABLE_SELECTED_APPLICATION_SELECTED => Self::Installation,
+            zypp_agama_sys::RESOLVABLE_SELECTED_SOLVER_SELECTED => Self::Solver,
             _ => panic!("Unknown value for resolvable_selected {}", value),
+        }
+    }
+}
+
+impl Into<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
+    fn into(self) -> zypp_agama_sys::RESOLVABLE_SELECTED {
+        match self {
+            Self::Not => zypp_agama_sys::RESOLVABLE_SELECTED_NOT_SELECTED,
+            Self::User => zypp_agama_sys::RESOLVABLE_SELECTED_USER_SELECTED,
+            Self::Installation => zypp_agama_sys::RESOLVABLE_SELECTED_APPLICATION_SELECTED,
+            Self::Solver => zypp_agama_sys::RESOLVABLE_SELECTED_SOLVER_SELECTED,
         }
     }
 }

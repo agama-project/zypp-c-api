@@ -246,16 +246,18 @@ extern "C" {
         progress: ProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
-    #[doc = " Marks resolvable for installation\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
+    #[doc = " Marks resolvable for installation\n @param name resolvable name\n @param kind kind of resolvable\n @param who who do selection. If NOT_SELECTED is used, it will be empty operation.\n @param[out] status (will overwrite existing contents)"]
     pub fn resolvable_select(
         name: *const ::std::os::raw::c_char,
         kind: RESOLVABLE_KIND,
+        who: RESOLVABLE_SELECTED,
         status: *mut Status,
     );
-    #[doc = " Unselect resolvable for installation. It can still be installed as dependency.\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
+    #[doc = " Unselect resolvable for installation. It can still be installed as dependency.\n @param name resolvable name\n @param kind kind of resolvable\n @param who who do unselection. Only unselect if it is higher or equal level then who do the selection.\n @param[out] status (will overwrite existing contents)"]
     pub fn resolvable_unselect(
         name: *const ::std::os::raw::c_char,
         kind: RESOLVABLE_KIND,
+        who: RESOLVABLE_SELECTED,
         status: *mut Status,
     );
     pub fn get_patterns_info(names: PatternNames, status: *mut Status) -> PatternInfos;

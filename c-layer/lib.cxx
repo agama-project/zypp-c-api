@@ -149,7 +149,25 @@ static zypp::Resolvable::Kind kind_to_zypp_kind(RESOLVABLE_KIND kind) {
   return zypp::Resolvable::Kind::nokind; // should not happen
 }
 
-void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, struct Status *status) noexcept {
+static zypp::ResStatus::TransactByValue convert_selected(enum RESOLVABLE_SELECTED who) {
+  switch (who) {
+    case RESOLVABLE_SELECTED::SOLVER_SELECTED: return zypp::ResStatus::SOLVER;
+    case RESOLVABLE_SELECTED::APPLICATION_SELECTED: return zypp::ResStatus::APPL_HIGH;
+    case RESOLVABLE_SELECTED::USER_SELECTED: return zypp::ResStatus::USER;
+    case RESOLVABLE_SELECTED::NOT_SELECTED: return zypp::ResStatus::SOLVER; // this should not happen as it should result in early exit
+  }
+
+  // should not happen
+  return zypp::ResStatus::SOLVER;
+}
+
+void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who, struct Status *status) noexcept {
+  if (who == RESOLVABLE_SELECTED::NOT_SELECTED) {
+    status->state = Status::STATE_SUCCEED;
+    status->error = NULL;
+    return;
+  }
+
   zypp::Resolvable::Kind z_kind = kind_to_zypp_kind(kind);
   auto selectable = zypp::ui::Selectable::get(z_kind, name);
   if (!selectable) {
@@ -160,10 +178,17 @@ void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, struct Statu
 
   status->state = Status::STATE_SUCCEED;
   status->error = NULL;
-  selectable->setToInstall(zypp::ResStatus::APPL_HIGH);
+  auto value = convert_selected(who);
+  selectable->setToInstall(value);
 }
 
-void resolvable_unselect(const char *name, enum RESOLVABLE_KIND kind, struct Status *status) noexcept {
+void resolvable_unselect(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who, struct Status *status) noexcept {
+    if (who == RESOLVABLE_SELECTED::NOT_SELECTED) {
+    status->state = Status::STATE_SUCCEED;
+    status->error = NULL;
+    return;
+  }
+
   zypp::Resolvable::Kind z_kind = kind_to_zypp_kind(kind);
   auto selectable = zypp::ui::Selectable::get(z_kind, name);
   if (!selectable) {
@@ -172,9 +197,8 @@ void resolvable_unselect(const char *name, enum RESOLVABLE_KIND kind, struct Sta
     return;
   }
 
-  // it can look a bit strange to unset with higher causer then set, but USER is the highest priority that overwrite
-  // even locks so we should be ok in Agama.
-  selectable->unset(zypp::ResStatus::USER);
+  auto value = convert_selected(who);
+  selectable->unset(value);
   status->state = Status::STATE_SUCCEED;
   status->error = NULL;
 }
@@ -213,7 +237,7 @@ struct PatternInfos get_patterns_info(struct PatternNames names, struct Status *
         break;
       case zypp::ResStatus::TransactByValue::APPL_HIGH:
       case zypp::ResStatus::TransactByValue::APPL_LOW:
-        result.infos[i].selected = RESOLVABLE_SELECTED::INSTALLATION_SELECTED;
+        result.infos[i].selected = RESOLVABLE_SELECTED::APPLICATION_SELECTED;
         break;
       case zypp::ResStatus::TransactByValue::SOLVER:
         result.infos[i].selected = RESOLVABLE_SELECTED::SOLVER_SELECTED;
