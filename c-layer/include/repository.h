@@ -10,10 +10,10 @@ extern "C" {
 #endif
 
 struct Repository {
-  bool enabled;     ///<
-  char *url;        ///< owned
-  char *alias;      ///< owned
-  char *userName;   ///< owned
+  bool enabled;   ///<
+  char *url;      ///< owned
+  char *alias;    ///< owned
+  char *userName; ///< owned
 };
 
 struct RepositoryList {
@@ -35,23 +35,26 @@ void free_repository_list(struct RepositoryList *repo_list) noexcept;
 /// @param[out] status (will overwrite existing contents)
 /// @param callback pointer to function with callback or NULL
 /// @param user_data
-void add_repository(const char* alias, const char* url, struct Status *status, ZyppProgressCallback callback, void* user_data) noexcept;
+void add_repository(const char *alias, const char *url, struct Status *status, ZyppProgressCallback callback,
+                    void *user_data) noexcept;
 
 /// Removes repository from repo manager
 /// @param alias have to be unique
 /// @param[out] status (will overwrite existing contents)
 /// @param callback pointer to function with callback or NULL
 /// @param user_data
-void remove_repository(const char* alias, struct Status *status, ZyppProgressCallback callback, void* user_data) noexcept;
+void remove_repository(const char *alias, struct Status *status, ZyppProgressCallback callback,
+                       void *user_data) noexcept;
 
 ///
 /// @param alias alias of repository to refresh
 /// @param[out] status (will overwrite existing contents)
 /// @param callbacks pointer to struct with callbacks or NULL if no progress is needed
-void refresh_repository(const char* alias, struct Status* status, struct DownloadProgressCallbacks *callbacks) noexcept;
+void refresh_repository(const char *alias, struct Status *status, struct DownloadProgressCallbacks *callbacks) noexcept;
 
-void build_repository_cache(const char* alias, struct Status *status, ZyppProgressCallback callback, void* user_data) noexcept;
-void load_repository_cache(const char* alias, struct Status *status) noexcept;
+void build_repository_cache(const char *alias, struct Status *status, ZyppProgressCallback callback,
+                            void *user_data) noexcept;
+void load_repository_cache(const char *alias, struct Status *status) noexcept;
 
 #ifdef __cplusplus
 }

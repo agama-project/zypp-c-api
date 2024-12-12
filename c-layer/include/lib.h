@@ -51,24 +51,73 @@ enum RESOLVABLE_KIND {
   RESOLVABLE_PATTERN,
 };
 
+
+enum RESOLVABLE_SELECTED {
+  /// resolvable won't be installed
+  NOT_SELECTED,
+  /// dependency solver select resolvable
+  /// match TransactByValue::SOLVER
+  SOLVER_SELECTED,
+  /// installation proposal selects resolvable
+  /// match TransactByValue::APPL_{LOW,HIGH} we do not need both, so we use just one value
+  APPLICATION_SELECTED,
+  /// user select resolvable for installation
+  /// match TransactByValue::USER
+  USER_SELECTED,
+};
+
 /// Marks resolvable for installation
 /// @param name resolvable name
 /// @param kind kind of resolvable
+/// @param who who do selection. If NOT_SELECTED is used, it will be empty operation.
 /// @param[out] status (will overwrite existing contents)
-void resolvable_select(const char* name, enum RESOLVABLE_KIND kind, struct Status* status) noexcept;
+void resolvable_select(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who, struct Status *status) noexcept;
 
 /// Unselect resolvable for installation. It can still be installed as dependency.
 /// @param name resolvable name
 /// @param kind kind of resolvable
+/// @param who who do unselection. Only unselect if it is higher or equal level then who do the selection.
 /// @param[out] status (will overwrite existing contents)
-void resolvable_unselect(const char* name, enum RESOLVABLE_KIND kind, struct Status* status) noexcept;
+void resolvable_unselect(const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who, struct Status *status) noexcept;
+
+
+struct PatternNames {
+  /// names of patterns
+  const char *const *const names;
+  /// size of names array
+  unsigned size;
+};
+
+/// Info from zypp::Pattern.
+/// https://doc.opensuse.org/projects/libzypp/HEAD/classzypp_1_1Pattern.html
+struct PatternInfo {
+  char *name;        ///< owned
+  char *category;    ///< owned
+  char *icon;        ///< owned
+  char *description; ///< owned
+  char *summary;     ///< owned
+  char *order;       ///< owned
+  enum RESOLVABLE_SELECTED selected;
+};
+
+struct PatternInfos {
+  struct PatternInfo *infos; ///< owned, *size* items
+  unsigned size;
+};
+
+/// Get Pattern details.
+/// Unknown patterns are simply omitted from the result. Match by PatternInfo.name, not by index.
+struct PatternInfos get_patterns_info(struct PatternNames names, struct Status *status) noexcept;
+void free_pattern_infos(const struct PatternInfos *infos) noexcept;
+
+void import_gpg_key(const char* const pathname, struct Status *status) noexcept;
 
 /// Runs solver
 /// @param[out] status (will overwrite existing contents)
 /// @return true if solver pass and false if it found some dependency issues
-bool run_solver(struct Status* status) noexcept;
+bool run_solver(struct Status *status) noexcept;
 
-// the last call that will free all pointers to zypp holded by agama
+/// the last call that will free all pointers to zypp holded by agama
 void free_zypp() noexcept;
 
 #ifdef __cplusplus

@@ -48,38 +48,31 @@ struct DownloadProgressReceive : public zypp::callback::ReceiveReport<zypp::medi
   time_t last_reported_time;
   struct DownloadProgressCallbacks *callbacks;
 
-  DownloadProgressReceive() {
-    callbacks = NULL;
-  }
+  DownloadProgressReceive() { callbacks = NULL; }
 
-  void set_callbacks(DownloadProgressCallbacks *callbacks_) {
-    callbacks = callbacks_;
-  }
+  void set_callbacks(DownloadProgressCallbacks *callbacks_) { callbacks = callbacks_; }
 
   virtual void start(const zypp::Url &file, zypp::Pathname localfile) {
     last_reported = 0;
     last_reported_time = time(NULL);
 
     if (callbacks != NULL && callbacks->start != NULL) {
-      callbacks->start(file.asString().c_str(), localfile.c_str(),
-                      callbacks->start_data);
+      callbacks->start(file.asString().c_str(), localfile.c_str(), callbacks->start_data);
     }
   }
 
-  virtual bool progress(int value, const zypp::Url &file, double bps_avg,
-                        double bps_current) {
+  virtual bool progress(int value, const zypp::Url &file, double bps_avg, double bps_current) {
     // call the callback function only if the difference since the last call is
     // at least 5% or if 100% is reached or if at least 3 seconds have elapsed
     time_t current_time = time(NULL);
     const int timeout = 3;
     if (callbacks != NULL && callbacks->progress != NULL &&
-        (value - last_reported >= 5 || last_reported - value >= 5 ||
-         value == 100 || current_time - last_reported_time >= timeout)) {
+        (value - last_reported >= 5 || last_reported - value >= 5 || value == 100 ||
+         current_time - last_reported_time >= timeout)) {
       last_reported = value;
       last_reported_time = current_time;
       // report changed values
-      return callbacks->progress(value, file.asString().c_str(), bps_avg,
-                                bps_current, callbacks->progress_data) != 0;
+      return callbacks->progress(value, file.asString().c_str(), bps_avg, bps_current, callbacks->progress_data) != 0;
     }
 
     return true;
@@ -88,7 +81,8 @@ struct DownloadProgressReceive : public zypp::callback::ReceiveReport<zypp::medi
   virtual Action problem(const zypp::Url &file, zypp::media::DownloadProgressReport::Error error,
                          const std::string &description) {
     if (callbacks != NULL && callbacks->problem != NULL) {
-      PROBLEM_RESPONSE response = callbacks->problem(file.asString().c_str(), error, description.c_str(), callbacks->problem_data);
+      PROBLEM_RESPONSE response =
+          callbacks->problem(file.asString().c_str(), error, description.c_str(), callbacks->problem_data);
 
       switch (response) {
       case PROBLEM_RETRY:
@@ -100,16 +94,13 @@ struct DownloadProgressReceive : public zypp::callback::ReceiveReport<zypp::medi
       }
     }
     // otherwise return the default value from the parent class
-    return zypp::media::DownloadProgressReport::problem(file, error,
-                                                        description);
+    return zypp::media::DownloadProgressReport::problem(file, error, description);
   }
 
-  virtual void finish(const zypp::Url &file,
-                      zypp::media::DownloadProgressReport::Error error,
+  virtual void finish(const zypp::Url &file, zypp::media::DownloadProgressReport::Error error,
                       const std::string &reason) {
     if (callbacks != NULL && callbacks->finish != NULL) {
-      callbacks->finish(file.asString().c_str(), error, reason.c_str(),
-                       callbacks->finish_data);
+      callbacks->finish(file.asString().c_str(), error, reason.c_str(), callbacks->finish_data);
     }
   }
 };

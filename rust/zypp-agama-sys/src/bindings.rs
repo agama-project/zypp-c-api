@@ -16,6 +16,7 @@ const _: () = {
     ["Offset of field: ProgressData::value"][::std::mem::offset_of!(ProgressData, value) - 0usize];
     ["Offset of field: ProgressData::name"][::std::mem::offset_of!(ProgressData, name) - 8usize];
 };
+#[doc = " @return true to continue, false to abort. Can be ignored"]
 pub type ZyppProgressCallback = ::std::option::Option<
     unsafe extern "C" fn(zypp_data: ProgressData, user_data: *mut ::std::os::raw::c_void) -> bool,
 >;
@@ -123,6 +124,77 @@ pub const RESOLVABLE_KIND_RESOLVABLE_PACKAGE: RESOLVABLE_KIND = 2;
 pub const RESOLVABLE_KIND_RESOLVABLE_SRCPACKAGE: RESOLVABLE_KIND = 3;
 pub const RESOLVABLE_KIND_RESOLVABLE_PATTERN: RESOLVABLE_KIND = 4;
 pub type RESOLVABLE_KIND = ::std::os::raw::c_uint;
+#[doc = " resolvable won't be installed"]
+pub const RESOLVABLE_SELECTED_NOT_SELECTED: RESOLVABLE_SELECTED = 0;
+#[doc = " dependency solver select resolvable\n match TransactByValue::SOLVER"]
+pub const RESOLVABLE_SELECTED_SOLVER_SELECTED: RESOLVABLE_SELECTED = 1;
+#[doc = " installation proposal selects resolvable\n match TransactByValue::APPL_{LOW,HIGH} we do not need both, so we use just one value"]
+pub const RESOLVABLE_SELECTED_APPLICATION_SELECTED: RESOLVABLE_SELECTED = 2;
+#[doc = " user select resolvable for installation\n match TransactByValue::USER"]
+pub const RESOLVABLE_SELECTED_USER_SELECTED: RESOLVABLE_SELECTED = 3;
+pub type RESOLVABLE_SELECTED = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PatternNames {
+    #[doc = " names of patterns"]
+    pub names: *const *const ::std::os::raw::c_char,
+    #[doc = " size of names array"]
+    pub size: ::std::os::raw::c_uint,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of PatternNames"][::std::mem::size_of::<PatternNames>() - 16usize];
+    ["Alignment of PatternNames"][::std::mem::align_of::<PatternNames>() - 8usize];
+    ["Offset of field: PatternNames::names"][::std::mem::offset_of!(PatternNames, names) - 0usize];
+    ["Offset of field: PatternNames::size"][::std::mem::offset_of!(PatternNames, size) - 8usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PatternInfo {
+    #[doc = "< owned"]
+    pub name: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub category: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub icon: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub description: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub summary: *mut ::std::os::raw::c_char,
+    #[doc = "< owned"]
+    pub order: *mut ::std::os::raw::c_char,
+    pub selected: RESOLVABLE_SELECTED,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of PatternInfo"][::std::mem::size_of::<PatternInfo>() - 56usize];
+    ["Alignment of PatternInfo"][::std::mem::align_of::<PatternInfo>() - 8usize];
+    ["Offset of field: PatternInfo::name"][::std::mem::offset_of!(PatternInfo, name) - 0usize];
+    ["Offset of field: PatternInfo::category"]
+        [::std::mem::offset_of!(PatternInfo, category) - 8usize];
+    ["Offset of field: PatternInfo::icon"][::std::mem::offset_of!(PatternInfo, icon) - 16usize];
+    ["Offset of field: PatternInfo::description"]
+        [::std::mem::offset_of!(PatternInfo, description) - 24usize];
+    ["Offset of field: PatternInfo::summary"]
+        [::std::mem::offset_of!(PatternInfo, summary) - 32usize];
+    ["Offset of field: PatternInfo::order"][::std::mem::offset_of!(PatternInfo, order) - 40usize];
+    ["Offset of field: PatternInfo::selected"]
+        [::std::mem::offset_of!(PatternInfo, selected) - 48usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PatternInfos {
+    #[doc = "< owned, *size* items"]
+    pub infos: *mut PatternInfo,
+    pub size: ::std::os::raw::c_uint,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of PatternInfos"][::std::mem::size_of::<PatternInfos>() - 16usize];
+    ["Alignment of PatternInfos"][::std::mem::align_of::<PatternInfos>() - 8usize];
+    ["Offset of field: PatternInfos::infos"][::std::mem::offset_of!(PatternInfos, infos) - 0usize];
+    ["Offset of field: PatternInfos::size"][::std::mem::offset_of!(PatternInfos, size) - 8usize];
+};
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Repository {
@@ -174,20 +246,26 @@ extern "C" {
         progress: ProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
-    #[doc = " Marks resolvable for installation\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
+    #[doc = " Marks resolvable for installation\n @param name resolvable name\n @param kind kind of resolvable\n @param who who do selection. If NOT_SELECTED is used, it will be empty operation.\n @param[out] status (will overwrite existing contents)"]
     pub fn resolvable_select(
         name: *const ::std::os::raw::c_char,
         kind: RESOLVABLE_KIND,
+        who: RESOLVABLE_SELECTED,
         status: *mut Status,
     );
-    #[doc = " Unselect resolvable for installation. It can still be installed as dependency.\n @param name resolvable name\n @param kind kind of resolvable\n @param[out] status (will overwrite existing contents)"]
+    #[doc = " Unselect resolvable for installation. It can still be installed as dependency.\n @param name resolvable name\n @param kind kind of resolvable\n @param who who do unselection. Only unselect if it is higher or equal level then who do the selection.\n @param[out] status (will overwrite existing contents)"]
     pub fn resolvable_unselect(
         name: *const ::std::os::raw::c_char,
         kind: RESOLVABLE_KIND,
+        who: RESOLVABLE_SELECTED,
         status: *mut Status,
     );
+    pub fn get_patterns_info(names: PatternNames, status: *mut Status) -> PatternInfos;
+    pub fn free_pattern_infos(infos: *const PatternInfos);
+    pub fn import_gpg_key(pathname: *const ::std::os::raw::c_char, status: *mut Status);
     #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return true if solver pass and false if it found some dependency issues"]
     pub fn run_solver(status: *mut Status) -> bool;
+    #[doc = " the last call that will free all pointers to zypp holded by agama"]
     pub fn free_zypp();
     #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory\n @param[out] status (will overwrite existing contents)"]
     pub fn list_repositories(status: *mut Status) -> RepositoryList;
