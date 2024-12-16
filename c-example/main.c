@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     root = argv[1];
   printf("List of repos:\n");
   const char *prefix = "Loading '/'"; // TODO: wrong report with changed root
-  init_target(root, &status, progress, (void *)prefix);
+  struct Zypp *zypp = init_target(root, &status, progress, (void *)prefix);
   if (status.state != STATE_SUCCEED) {
     printf("init ERROR!: %s\n", status.error);
     result = EXIT_FAILURE;
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
   free_status(&status);
 
   printf("Existing repos:");
-  struct RepositoryList list = list_repositories(&status);
+  struct RepositoryList list = list_repositories(zypp, &status);
   if (status.state != STATE_SUCCEED) {
     printf("list_repositories ERROR!: %s\n", status.error);
     result = EXIT_FAILURE;
@@ -71,7 +71,9 @@ int main(int argc, char *argv[]) {
 
   printf("\n\n");
   printf("Adding new repo with Agama Devel\n");
-  add_repository("agama", "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/", &status, zypp_progress, NULL);
+  add_repository(zypp, "agama",
+                 "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/",
+                 &status, zypp_progress, NULL);
   if (status.state != STATE_SUCCEED) {
     printf("failed to add repo!: %s\n", status.error);
     result = EXIT_FAILURE;
@@ -79,7 +81,7 @@ int main(int argc, char *argv[]) {
   }
   free_status(&status);
   printf("Refreshing it");
-  refresh_repository("agama", &status, &download_callbacks);
+  refresh_repository(zypp, "agama", &status, &download_callbacks);
   if (status.state != STATE_SUCCEED) {
     printf("refresh ERROR!: %s\n", status.error);
     goto repoerr;
@@ -90,6 +92,6 @@ repoerr:
   free_repository_list(&list);
 norepo:
   free_status(&status);
-  free_zypp();
+  free_zypp(zypp);
   return result;
 }
