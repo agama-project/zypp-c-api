@@ -249,7 +249,11 @@ impl Into<zypp_agama_sys::RESOLVABLE_KIND> for ResolvableKind {
     }
 }
 
-pub fn select_resolvable(name: &str, kind: ResolvableKind, who: ResolvableSelected) -> ZyppResult<()> {
+pub fn select_resolvable(
+    name: &str,
+    kind: ResolvableKind,
+    who: ResolvableSelected,
+) -> ZyppResult<()> {
     unsafe {
         let mut status: Status = Status::default();
         let status_ptr = &mut status as *mut _;
@@ -260,7 +264,11 @@ pub fn select_resolvable(name: &str, kind: ResolvableKind, who: ResolvableSelect
     }
 }
 
-pub fn unselect_resolvable(name: &str, kind: ResolvableKind, who: ResolvableSelected) -> ZyppResult<()> {
+pub fn unselect_resolvable(
+    name: &str,
+    kind: ResolvableKind,
+    who: ResolvableSelected,
+) -> ZyppResult<()> {
     unsafe {
         let mut status: Status = Status::default();
         let status_ptr = &mut status as *mut _;

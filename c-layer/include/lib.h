@@ -57,7 +57,6 @@ enum RESOLVABLE_KIND {
   RESOLVABLE_PATTERN,
 };
 
-
 enum RESOLVABLE_SELECTED {
   /// resolvable won't be installed
   NOT_SELECTED,
