@@ -1,9 +1,9 @@
 #include "callbacks.h"
 #include "lib.h"
 #include "repository.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 void progress(const char *text, unsigned stage, unsigned total, void *data) {
   printf("(%s) %u/%u: %s\n", (const char *)data, stage, total, text);
@@ -37,13 +37,10 @@ int main(int argc, char *argv[]) {
   int result = EXIT_SUCCESS;
   struct Status status;
   struct DownloadProgressCallbacks download_callbacks = {
-    download_progress_start, NULL,
-    download_progress_progress, NULL,
-    download_progress_problem, NULL,
-    download_progress_finish, NULL
-  };
+      download_progress_start,   NULL, download_progress_progress, NULL,
+      download_progress_problem, NULL, download_progress_finish,   NULL};
 
-  char * root = "/";
+  char *root = "/";
   if (argc > 1)
     root = argv[1];
   printf("List of repos:\n");
@@ -86,7 +83,6 @@ int main(int argc, char *argv[]) {
     printf("refresh ERROR!: %s\n", status.error);
     goto repoerr;
   }
-
 
 repoerr:
   free_repository_list(&list);

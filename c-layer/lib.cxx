@@ -1,8 +1,8 @@
 #include "lib.h"
 #include "callbacks.h"
 #include "callbacks.hxx"
-#include "repository.h"
 #include "helpers.hxx"
+#include "repository.h"
 
 #include <cstddef>
 #include <cstdlib>
@@ -163,12 +163,15 @@ static zypp::Resolvable::Kind kind_to_zypp_kind(RESOLVABLE_KIND kind) {
 
 static zypp::ResStatus::TransactByValue transactby_from(enum RESOLVABLE_SELECTED who) {
   switch (who) {
-    case RESOLVABLE_SELECTED::SOLVER_SELECTED: return zypp::ResStatus::SOLVER;
-    case RESOLVABLE_SELECTED::APPLICATION_SELECTED: return zypp::ResStatus::APPL_HIGH;
-    case RESOLVABLE_SELECTED::USER_SELECTED: return zypp::ResStatus::USER;
-    case RESOLVABLE_SELECTED::NOT_SELECTED: {
-      PANIC("Unexpected value RESOLVABLE_SELECTED::NOT_SELECTED.");
-    }
+  case RESOLVABLE_SELECTED::SOLVER_SELECTED:
+    return zypp::ResStatus::SOLVER;
+  case RESOLVABLE_SELECTED::APPLICATION_SELECTED:
+    return zypp::ResStatus::APPL_HIGH;
+  case RESOLVABLE_SELECTED::USER_SELECTED:
+    return zypp::ResStatus::USER;
+  case RESOLVABLE_SELECTED::NOT_SELECTED: {
+    PANIC("Unexpected value RESOLVABLE_SELECTED::NOT_SELECTED.");
+  }
   }
 
   // should not happen
@@ -441,7 +444,7 @@ void import_gpg_key(struct Zypp *zypp, const char *const pathname, struct Status
     // Keys that are unknown (not imported).
     // or known-but-untrusted (weird in-between state, see KeyRing_test.cc)
     // will trigger "Trust this?" callbacks.
-    bool trusted = true;  
+    bool trusted = true;
     zypp->zypp_pointer->keyRing()->importKey(key, trusted);
     status->state = status->STATE_SUCCEED;
     status->error = NULL;
