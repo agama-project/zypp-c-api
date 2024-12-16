@@ -1,0 +1,9 @@
+# .git-blame-ignore-revs
+# https://docs.github.com/en/repositories/working-with-files/using-files/viewing-and-understanding-files#ignore-commits-in-the-blame-view
+# https://git-scm.com/docs/git-blame#Documentation/git-blame.txt---ignore-revs-fileltfilegt
+
+# consistent formatting with clang-format (one-time)
+5a5a92d28ccca69c233076d0e22c395d213f18da
+
+# Applied `make format`
+ffdff31e91817be06d634dc0a9076d8b6472e155
