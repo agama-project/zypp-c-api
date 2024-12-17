@@ -108,7 +108,11 @@ impl<'a> Zypp<'a> {
 impl Drop for Zypp<'_> {
     fn drop(&mut self) {
         // println!("dropping Zypp");
-        // TODO: call free_zypp here
+        unsafe {
+            if !self.in_ner.is_null() {
+                zypp_agama_sys::free_zypp(self.in_ner);
+            }
+        }
     }
 }
 
@@ -483,7 +487,6 @@ mod tests {
     #[test]
     fn init_target_ok() -> Result<(), Box<dyn Error>> {
         init_target("/", progress_cb)?;
-        // TODO: free_zypp, don't leak RepoManager
         Ok(())
     }
 
