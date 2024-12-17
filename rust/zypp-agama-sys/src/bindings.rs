@@ -270,7 +270,11 @@ extern "C" {
         status: *mut Status,
     );
     #[doc = " Get Pattern details.\n Unknown patterns are simply omitted from the result. Match by PatternInfo.name, not by index."]
-    pub fn get_patterns_info(names: PatternNames, status: *mut Status) -> PatternInfos;
+    pub fn get_patterns_info(
+        _zypp: *mut Zypp,
+        names: PatternNames,
+        status: *mut Status,
+    ) -> PatternInfos;
     pub fn free_pattern_infos(infos: *const PatternInfos);
     pub fn import_gpg_key(
         zypp: *mut Zypp,

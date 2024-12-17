@@ -96,7 +96,7 @@ fn main() -> Result<(), zypp_agama::ZyppError> {
     println!("Non conflicting case. Solver returns {}", res);
 
     let names = vec!["base", "minimal_base"];
-    let res = zypp_agama::patterns_info(names)?;
+    let res = zypp_agama::patterns_info(&zypp, names)?;
     println!("patterns info: {:#?}", res);
 
     Ok(())

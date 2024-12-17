@@ -370,7 +370,7 @@ pub struct PatternInfo {
     pub selected: ResolvableSelected,
 }
 
-pub fn patterns_info(names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
+pub fn patterns_info(zypp: &Zypp, names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
     unsafe {
         let mut status: Status = Status::default();
         let status_ptr = &mut status as *mut _;
@@ -383,7 +383,7 @@ pub fn patterns_info(names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
             size: names.len() as u32,
             names: c_ptr_names.as_ptr(),
         };
-        let infos = get_patterns_info(pattern_names, status_ptr);
+        let infos = get_patterns_info(zypp.inner(), pattern_names, status_ptr);
         helpers::status_to_result_void(status)?;
 
         let mut r_infos = Vec::with_capacity(infos.size as usize);

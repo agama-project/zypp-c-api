@@ -1,6 +1,8 @@
 all:
 	$(MAKE) -C c-layer $@
 	$(MAKE) -C c-example $@
+# TODO: put bindgen to build.rs
+	(cd rust/zypp-agama-sys; bindgen --merge-extern-blocks headers.h -o src/bindings.rs -- -I../../c-layer/include)
 	(cd rust; cargo build)
 	doxygen
 
