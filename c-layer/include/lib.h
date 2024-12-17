@@ -115,7 +115,7 @@ struct PatternInfos {
 
 /// Get Pattern details.
 /// Unknown patterns are simply omitted from the result. Match by PatternInfo.name, not by index.
-struct PatternInfos get_patterns_info(struct PatternNames names, struct Status *status) noexcept;
+struct PatternInfos get_patterns_info(struct Zypp *_zypp, struct PatternNames names, struct Status *status) noexcept;
 void free_pattern_infos(const struct PatternInfos *infos) noexcept;
 
 void import_gpg_key(struct Zypp *zypp, const char *const pathname, struct Status *status) noexcept;

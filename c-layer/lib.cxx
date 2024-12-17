@@ -222,7 +222,7 @@ void resolvable_unselect(struct Zypp *_zypp, const char *name, enum RESOLVABLE_K
   status->error = NULL;
 }
 
-struct PatternInfos get_patterns_info(struct PatternNames names, struct Status *status) noexcept {
+struct PatternInfos get_patterns_info(struct Zypp *_zypp, struct PatternNames names, struct Status *status) noexcept {
   PatternInfos result = {
       (struct PatternInfo *)malloc(names.size * sizeof(PatternInfo)),
       0 // initialize with zero and increase after each successfull add of pattern info
