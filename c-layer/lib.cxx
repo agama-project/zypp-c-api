@@ -49,6 +49,7 @@ struct Zypp *new_zypp() {
 void free_zypp(struct Zypp *zypp) noexcept {
   zypp->zypp_pointer = NULL; // shared ptr assignment operator will free original pointer
   delete (zypp->repo_manager);
+  zypp->repo_manager = NULL;
 }
 
 // helper to get allocated formated string. Sadly C does not provide any portable way to do it.
