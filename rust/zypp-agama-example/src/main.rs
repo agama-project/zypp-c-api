@@ -56,40 +56,43 @@ fn main() -> Result<(), zypp_agama::ZyppError> {
     let default_root = "/".to_owned();
     let root = args.get(1).unwrap_or(&default_root);
 
-    let z = zypp_agama::init_target(root, |text, step, total| {
+    let zypp = zypp_agama::init_target(root, |text, step, total| {
         println!("Initializing target: {}/{} - {}", step, total, text)
     })?;
 
     println!("List of existing repositories:");
-    let repos = zypp_agama::list_repositories(&z)?;
+    let repos = zypp_agama::list_repositories(&zypp)?;
     for repo in repos {
         println!("- Repo {} with url {}", repo.user_name, repo.url);
     }
 
-    zypp_agama::load_source(&z, |percent, text| {
+    zypp_agama::load_source(&zypp, |percent, text| {
         println!("{}%: {}", percent, text);
         true
     })?;
     // intentionally create conflict
     zypp_agama::select_resolvable(
+        &zypp,
         "ftp",
         ResolvableKind::Package,
         zypp_agama::ResolvableSelected::User,
     )?;
     zypp_agama::select_resolvable(
+        &zypp,
         "tnftp",
         ResolvableKind::Package,
         zypp_agama::ResolvableSelected::User,
     )?;
-    let res = zypp_agama::run_solver()?;
+    let res = zypp_agama::run_solver(&zypp)?;
     println!("Conflict case. Solver returns {}", res);
 
     zypp_agama::unselect_resolvable(
+        &zypp,
         "ftp",
         ResolvableKind::Package,
         zypp_agama::ResolvableSelected::User,
     )?;
-    let res = zypp_agama::run_solver()?;
+    let res = zypp_agama::run_solver(&zypp)?;
     println!("Non conflicting case. Solver returns {}", res);
 
     let names = vec!["base", "minimal_base"];
