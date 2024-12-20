@@ -1,7 +1,7 @@
 use std::{
     ffi::CString,
     os::raw::{c_char, c_uint, c_void},
-    sync::{Mutex, MutexGuard},
+    sync::{Mutex, MutexGuard, TryLockError},
 };
 
 pub use callbacks::DownloadProgress;
@@ -78,21 +78,48 @@ pub struct Zypp<'a> {
 }
 
 impl<'a> Zypp<'a> {
+    // Create Self, locking the Mutex (delaying and retrying a few times before panicking).
+    //
     // Usage:
     // ```
     // let mut zypp = Zypp::lock();
     // let inner_zypp = zypp_agama_sys::init_target(...);
     // zypp.set(inner_zypp);
     // ```
+    //
     // Using `lock()`+`set(inner)` instead of `new(inner)` lets us
     // avoid locks on the C side
     pub fn lock() -> Self {
-        let z = Self {
-            _guard: ZYPP_MUTEX.lock().unwrap(),
-            in_ner: std::ptr::null_mut(),
-        };
-        // println!("creating Zypp");
-        z
+        let mut delay = std::time::Duration::from_millis(10);
+        let mut tries = 8;
+        // Exponential backoff, will wait at most (2**(tries-1) - 1) * delay
+        // Which is 1.27s for now. Increase *tries* if needed.
+        loop {
+            let result = ZYPP_MUTEX.try_lock();
+            if let Ok(guard) = result {
+                // println!("creating Zypp");
+                return Self {
+                    _guard: guard,
+                    in_ner: std::ptr::null_mut(),
+                };
+            }
+
+            match result.unwrap_err() {
+                TryLockError::Poisoned(_) => {
+                    panic!("Another thread had the ZYPP_MUTEX, and panicked.")
+                }
+                TryLockError::WouldBlock => {
+                    tries -= 1;
+                    if tries <= 0 {
+                        panic!("Another thread had the ZYPP_MUTEX for too long.");
+                    }
+                }
+            }
+
+            // println!("delaying {:?}", delay);
+            std::thread::sleep(delay);
+            delay = delay.mul_f64(2.0);
+        }
     }
 
     pub fn set(&mut self, inner: *mut zypp_agama_sys::Zypp) {
@@ -497,14 +524,15 @@ mod tests {
         Ok(())
     }
 
-    /*
     #[test]
-    fn init_target_deadlock() -> Result<(), Box<dyn Error>> {
-        let _z1 = init_target("/", progress_cb)?;
-        let _z2 = init_target("/mnt", progress_cb)?;
-        Ok(())
+    #[should_panic(expected = "ZYPP_MUTEX for too long")]
+    fn init_target_deadlock() {
+        // Let other test threads succeed before we hog the Mutex.
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        let _z1 = init_target("/", progress_cb).unwrap();
+        let _z2 = init_target("/mnt", progress_cb).unwrap();
     }
-    */
 
     // Init a RPM database in *root*, or do nothing if it exists
     fn init_rpmdb(root: &str) -> Result<(), Box<dyn Error>> {
