@@ -39,6 +39,8 @@ pub struct Areas {
 }
 
 impl Areas {
+    /// Sets for given id requirements. It will try to satisfy requirements and also if given
+    /// id contain old requirements, unselects them.
     pub fn set_resolvables(&mut self, id: &str, requirements: Requirements) -> ZyppResult<()> {
         let key = id.to_string();
         if let Some(old) = self.map.get(&key) {
