@@ -16,6 +16,7 @@ mod helpers;
 use helpers::{status_to_result_void, string_from_ptr};
 
 mod callbacks;
+pub mod proposal;
 
 #[derive(Debug)]
 pub struct Repository {
@@ -200,6 +201,7 @@ pub fn load_repo_cache(alias: &str) -> ZyppResult<()> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum ResolvableKind {
     Package,
     Pattern,
@@ -242,7 +244,7 @@ pub fn unselect_resolvable(name: &str, kind: ResolvableKind, who: ResolvableSele
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ResolvableSelected {
     Not,
     User,
