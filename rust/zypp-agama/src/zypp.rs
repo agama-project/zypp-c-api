@@ -8,8 +8,7 @@ pub struct Zypp<'a> {
     // underscore prevents
     //     warning: field `guard` is never read
     _guard: MutexGuard<'a, ()>,
-    // stupid spelling, attempt to prevent private access
-    in_ner: *mut zypp_agama_sys::Zypp,
+    inner: *mut zypp_agama_sys::Zypp,
 }
 
 impl<'a> Zypp<'a> {
@@ -35,7 +34,7 @@ impl<'a> Zypp<'a> {
                 // println!("creating Zypp");
                 return Self {
                     _guard: guard,
-                    in_ner: std::ptr::null_mut(),
+                    inner: std::ptr::null_mut(),
                 };
             }
 
@@ -58,12 +57,12 @@ impl<'a> Zypp<'a> {
     }
 
     pub fn set(&mut self, inner: *mut zypp_agama_sys::Zypp) {
-        self.in_ner = inner;
+        self.inner = inner;
     }
 
     pub fn inner(&self) -> *mut zypp_agama_sys::Zypp {
-        assert!(!self.in_ner.is_null());
-        self.in_ner
+        assert!(!self.inner.is_null());
+        self.inner
     }
 }
 
@@ -71,8 +70,8 @@ impl Drop for Zypp<'_> {
     fn drop(&mut self) {
         // println!("dropping Zypp");
         unsafe {
-            if !self.in_ner.is_null() {
-                zypp_agama_sys::free_zypp(self.in_ner);
+            if !self.inner.is_null() {
+                zypp_agama_sys::free_zypp(self.inner);
             }
         }
     }
