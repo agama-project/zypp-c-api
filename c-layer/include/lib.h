@@ -35,19 +35,24 @@ struct Zypp;
 /// Progress reporting callback used by methods that takes longer.
 /// @param text  text for user describing what is happening now
 /// @param stage current stage number starting with 0
-/// @param total count of stages. It should not change during single call of method.
-/// @param user_data is never touched by method and is used only to pass local data for callback
-/// @todo Do we want to support response for callback that allows early exit of execution?
-typedef void (*ProgressCallback)(const char *text, unsigned stage, unsigned total, void *user_data);
+/// @param total count of stages. It should not change during single call of
+/// method.
+/// @param user_data is never touched by method and is used only to pass local
+/// data for callback
+/// @todo Do we want to support response for callback that allows early exit of
+/// execution?
+typedef void (*ProgressCallback)(const char *text, unsigned stage,
+                                 unsigned total, void *user_data);
 /// Initialize Zypp target (where to install packages to).
-/// The returned zypp context is not thread safe and should be protected by a mutex
-/// in the calling layer.
+/// The returned zypp context is not thread safe and should be protected by a
+/// mutex in the calling layer.
 /// @param root
 /// @param[out] status
 /// @param progress
 /// @param user_data
 /// @return zypp context
-struct Zypp *init_target(const char *root, struct Status *status, ProgressCallback progress, void *user_data) noexcept;
+struct Zypp *init_target(const char *root, struct Status *status,
+                         ProgressCallback progress, void *user_data) noexcept;
 
 enum RESOLVABLE_KIND {
   RESOLVABLE_PRODUCT,
@@ -64,7 +69,8 @@ enum RESOLVABLE_SELECTED {
   /// match TransactByValue::SOLVER
   SOLVER_SELECTED,
   /// installation proposal selects resolvable
-  /// match TransactByValue::APPL_{LOW,HIGH} we do not need both, so we use just one value
+  /// match TransactByValue::APPL_{LOW,HIGH} we do not need both, so we use just
+  /// one value
   APPLICATION_SELECTED,
   /// user select resolvable for installation
   /// match TransactByValue::USER
@@ -75,18 +81,24 @@ enum RESOLVABLE_SELECTED {
 /// @param zypp see \ref init_target
 /// @param name resolvable name
 /// @param kind kind of resolvable
-/// @param who who do selection. If NOT_SELECTED is used, it will be empty operation.
+/// @param who who do selection. If NOT_SELECTED is used, it will be empty
+/// operation.
 /// @param[out] status (will overwrite existing contents)
-void resolvable_select(struct Zypp *zypp, const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who,
+void resolvable_select(struct Zypp *zypp, const char *name,
+                       enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who,
                        struct Status *status) noexcept;
 
-/// Unselect resolvable for installation. It can still be installed as dependency.
+/// Unselect resolvable for installation. It can still be installed as
+/// dependency.
 /// @param zypp see \ref init_target
 /// @param name resolvable name
 /// @param kind kind of resolvable
-/// @param who who do unselection. Only unselect if it is higher or equal level then who do the selection.
+/// @param who who do unselection. Only unselect if it is higher or equal level
+/// then who do the selection.
 /// @param[out] status (will overwrite existing contents)
-void resolvable_unselect(struct Zypp *zypp, const char *name, enum RESOLVABLE_KIND kind, enum RESOLVABLE_SELECTED who,
+void resolvable_unselect(struct Zypp *zypp, const char *name,
+                         enum RESOLVABLE_KIND kind,
+                         enum RESOLVABLE_SELECTED who,
                          struct Status *status) noexcept;
 
 struct PatternNames {
@@ -114,11 +126,15 @@ struct PatternInfos {
 };
 
 /// Get Pattern details.
-/// Unknown patterns are simply omitted from the result. Match by PatternInfo.name, not by index.
-struct PatternInfos get_patterns_info(struct Zypp *_zypp, struct PatternNames names, struct Status *status) noexcept;
+/// Unknown patterns are simply omitted from the result. Match by
+/// PatternInfo.name, not by index.
+struct PatternInfos get_patterns_info(struct Zypp *_zypp,
+                                      struct PatternNames names,
+                                      struct Status *status) noexcept;
 void free_pattern_infos(const struct PatternInfos *infos) noexcept;
 
-void import_gpg_key(struct Zypp *zypp, const char *const pathname, struct Status *status) noexcept;
+void import_gpg_key(struct Zypp *zypp, const char *const pathname,
+                    struct Status *status) noexcept;
 
 /// Runs solver
 /// @param zypp see \ref init_target

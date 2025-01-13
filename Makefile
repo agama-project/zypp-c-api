@@ -8,7 +8,7 @@ all:
 
 check:
 	git ls-files | grep '\.[ch]' | \
-	  xargs --verbose clang-format --style="{BasedOnStyle: llvm, ColumnLimit: 120}" --dry-run
+	  xargs --verbose clang-format --style=llvm --dry-run
 	$(MAKE) -C c-layer $@
 	$(MAKE) -C c-example $@
 	(cd rust; cargo fmt -- --check)
@@ -21,5 +21,5 @@ clean:
 
 format:
 	git ls-files | grep '\.[ch]' | \
-	  xargs --verbose clang-format --style="{BasedOnStyle: llvm, ColumnLimit: 120}" -i
+	  xargs --verbose clang-format --style=llvm -i
 	(cd rust; cargo fmt)

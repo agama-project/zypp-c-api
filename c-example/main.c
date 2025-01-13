@@ -14,22 +14,28 @@ bool zypp_progress(struct ProgressData data, void *user_data) {
   return true;
 }
 
-void download_progress_start(const char *url, const char *localfile, void *user_data) {
+void download_progress_start(const char *url, const char *localfile,
+                             void *user_data) {
   printf("Starting download of %s to %s\n", url, localfile);
 }
 
-bool download_progress_progress(int value, const char *url, double bps_avg, double bps_current, void *user_data) {
-  printf("Downloading %s with %i%% (speed: now %f avg %f)\n", url, value, bps_current, bps_avg);
+bool download_progress_progress(int value, const char *url, double bps_avg,
+                                double bps_current, void *user_data) {
+  printf("Downloading %s with %i%% (speed: now %f avg %f)\n", url, value,
+         bps_current, bps_avg);
   return true;
 }
 
-enum PROBLEM_RESPONSE download_progress_problem(const char *url, int error, const char *description, void *user_data) {
+enum PROBLEM_RESPONSE download_progress_problem(const char *url, int error,
+                                                const char *description,
+                                                void *user_data) {
   printf("Download ERROR for %s: %s\n", url, description);
   printf("Aborting...\n");
   return PROBLEM_ABORT;
 }
 
-void download_progress_finish(const char *url, int error, const char *reason, void *user_data) {
+void download_progress_finish(const char *url, int error, const char *reason,
+                              void *user_data) {
   printf("Download of %s finished with status %d (%s)\n", url, error, reason);
 }
 
@@ -69,7 +75,8 @@ int main(int argc, char *argv[]) {
   printf("\n\n");
   printf("Adding new repo with Agama Devel\n");
   add_repository(zypp, "agama",
-                 "https://download.opensuse.org/repositories/systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/",
+                 "https://download.opensuse.org/repositories/"
+                 "systemsmanagement:/Agama:/Devel/openSUSE_Tumbleweed/",
                  &status, zypp_progress, NULL);
   if (status.state != STATE_SUCCEED) {
     printf("failed to add repo!: %s\n", status.error);

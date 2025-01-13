@@ -26,7 +26,8 @@ struct RepositoryList {
 /// when no longer needed, use \ref free_repository_list to release memory
 /// @param zypp see \ref init_target
 /// @param[out] status (will overwrite existing contents)
-struct RepositoryList list_repositories(struct Zypp *zypp, struct Status *status) noexcept;
+struct RepositoryList list_repositories(struct Zypp *zypp,
+                                        struct Status *status) noexcept;
 
 void free_repository_list(struct RepositoryList *repo_list) noexcept;
 
@@ -37,8 +38,9 @@ void free_repository_list(struct RepositoryList *repo_list) noexcept;
 /// @param[out] status (will overwrite existing contents)
 /// @param callback pointer to function with callback or NULL
 /// @param user_data
-void add_repository(struct Zypp *zypp, const char *alias, const char *url, struct Status *status,
-                    ZyppProgressCallback callback, void *user_data) noexcept;
+void add_repository(struct Zypp *zypp, const char *alias, const char *url,
+                    struct Status *status, ZyppProgressCallback callback,
+                    void *user_data) noexcept;
 
 /// Removes repository from repo manager
 /// @param zypp see \ref init_target
@@ -46,20 +48,26 @@ void add_repository(struct Zypp *zypp, const char *alias, const char *url, struc
 /// @param[out] status (will overwrite existing contents)
 /// @param callback pointer to function with callback or NULL
 /// @param user_data
-void remove_repository(struct Zypp *zypp, const char *alias, struct Status *status, ZyppProgressCallback callback,
+void remove_repository(struct Zypp *zypp, const char *alias,
+                       struct Status *status, ZyppProgressCallback callback,
                        void *user_data) noexcept;
 
 ///
 /// @param zypp see \ref init_target
 /// @param alias alias of repository to refresh
 /// @param[out] status (will overwrite existing contents)
-/// @param callbacks pointer to struct with callbacks or NULL if no progress is needed
-void refresh_repository(struct Zypp *zypp, const char *alias, struct Status *status,
+/// @param callbacks pointer to struct with callbacks or NULL if no progress is
+/// needed
+void refresh_repository(struct Zypp *zypp, const char *alias,
+                        struct Status *status,
                         struct DownloadProgressCallbacks *callbacks) noexcept;
 
-void build_repository_cache(struct Zypp *zypp, const char *alias, struct Status *status, ZyppProgressCallback callback,
+void build_repository_cache(struct Zypp *zypp, const char *alias,
+                            struct Status *status,
+                            ZyppProgressCallback callback,
                             void *user_data) noexcept;
-void load_repository_cache(struct Zypp *zypp, const char *alias, struct Status *status) noexcept;
+void load_repository_cache(struct Zypp *zypp, const char *alias,
+                           struct Status *status) noexcept;
 
 #ifdef __cplusplus
 }
