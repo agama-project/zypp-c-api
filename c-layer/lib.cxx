@@ -99,7 +99,7 @@ struct Zypp *init_target(const char *root, struct Status *status,
   if (the_zypp.zypp_pointer != NULL) {
     status->state = status->STATE_FAILED;
     status->error = strdup("Cannot have two init_target concurrently, "
-                           "libzypp not ready for this.");
+                           "libzypp not ready for this. Call free_zypp first.");
     return NULL;
   }
 
