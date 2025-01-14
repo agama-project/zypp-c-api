@@ -96,6 +96,13 @@ static zypp::ZYpp::Ptr zypp_ptr() {
 // target and merge it in rust
 struct Zypp *init_target(const char *root, struct Status *status,
                          ProgressCallback progress, void *user_data) noexcept {
+  if (the_zypp.zypp_pointer != NULL) {
+    status->state = status->STATE_FAILED;
+    status->error = strdup("Cannot have two init_target concurrently, "
+                           "libzypp not ready for this.");
+    return NULL;
+  }
+
   const std::string root_str(root);
 
   struct Zypp *zypp = NULL;
@@ -123,6 +130,7 @@ struct Zypp *init_target(const char *root, struct Status *status,
   } catch (zypp::Exception &excpt) {
     status->state = status->STATE_FAILED;
     status->error = strdup(excpt.asUserString().c_str());
+    the_zypp.zypp_pointer = NULL;
     return NULL;
   }
 

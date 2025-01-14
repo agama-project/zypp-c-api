@@ -430,8 +430,8 @@ mod tests {
     use std::error::Error;
     use std::process::Command;
 
-    fn progress_cb(_text: String, _stage: u32, _total: u32) {
-        // for test do nothing..maybe some check of callbacks?
+    fn progress_cb(_text: String, _step: u32, _total: u32) {
+        // println!("Test initializing target: {}/{} - {}", _step, _total, _text)
     }
 
     #[test]
