@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
   if (status.state != STATE_SUCCEED) {
     printf("init ERROR!: %s\n", status.error);
     result = EXIT_FAILURE;
-    goto norepo;
+    goto nozypp;
   }
   free_status(&status);
 
@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
     goto norepo;
   }
   free_status(&status);
+
   for (unsigned i = 0; i < list.size; ++i) {
     struct Repository *repo = list.repos + i;
     printf("repo %i: %s\n", i, repo->userName);
@@ -94,7 +95,8 @@ int main(int argc, char *argv[]) {
 repoerr:
   free_repository_list(&list);
 norepo:
-  free_status(&status);
   free_zypp(zypp);
+nozypp:
+  free_status(&status);
   return result;
 }
