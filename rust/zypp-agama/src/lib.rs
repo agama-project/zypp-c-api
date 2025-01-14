@@ -448,6 +448,14 @@ mod tests {
     }
 
     #[test]
+    fn init_target_err2() -> Result<(), Box<dyn Error>> {
+        // a nonexistent relative root triggers a C++ exception
+        let result = init_target("not_absolute", progress_cb);
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
     #[should_panic(expected = "ZYPP_MUTEX for too long")]
     fn init_target_deadlock() {
         // Let other test threads succeed before we hog the Mutex.
