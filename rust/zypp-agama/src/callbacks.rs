@@ -1,6 +1,11 @@
 use std::os::raw::{c_char, c_int, c_void};
 
-use zypp_agama_sys::{DownloadProgressCallbacks, ZyppDownloadFinishCallback, ZyppDownloadProblemCallback, ZyppDownloadProgressCallback, ZyppDownloadStartCallback, PROBLEM_RESPONSE, PROBLEM_RESPONSE_PROBLEM_ABORT, PROBLEM_RESPONSE_PROBLEM_IGNORE, PROBLEM_RESPONSE_PROBLEM_RETRY};
+use zypp_agama_sys::{
+    DownloadProgressCallbacks, ZyppDownloadFinishCallback, ZyppDownloadProblemCallback,
+    ZyppDownloadProgressCallback, ZyppDownloadStartCallback, PROBLEM_RESPONSE,
+    PROBLEM_RESPONSE_PROBLEM_ABORT, PROBLEM_RESPONSE_PROBLEM_IGNORE,
+    PROBLEM_RESPONSE_PROBLEM_RETRY,
+};
 
 use crate::helpers::string_from_ptr;
 
@@ -25,7 +30,7 @@ impl Into<PROBLEM_RESPONSE> for ProblemResponse {
     }
 }
 
-// generic trait to 
+// generic trait to
 pub trait DownloadProgress {
     // callback when download start
     fn start(&self, _url: &str, _localfile: &str) {}
@@ -80,7 +85,7 @@ where
 
 fn get_download_progress_progress<F>(_closure: &F) -> ZyppDownloadProgressCallback
 where
-F: FnMut(i32, String, f64, f64) -> bool,
+    F: FnMut(i32, String, f64, f64) -> bool,
 {
     Some(download_progress_progress::<F>)
 }
@@ -95,13 +100,17 @@ where
     F: FnMut(String, c_int, String) -> ProblemResponse,
 {
     let user_data = &mut *(user_data as *mut F);
-    let res = user_data(string_from_ptr(url), error.into(), string_from_ptr(description));
+    let res = user_data(
+        string_from_ptr(url),
+        error.into(),
+        string_from_ptr(description),
+    );
     res.into()
 }
 
 fn get_download_progress_problem<F>(_closure: &F) -> ZyppDownloadProblemCallback
 where
-F: FnMut(String, c_int, String) -> ProblemResponse,
+    F: FnMut(String, c_int, String) -> ProblemResponse,
 {
     Some(download_progress_problem::<F>)
 }
@@ -111,32 +120,35 @@ unsafe extern "C" fn download_progress_finish<F>(
     error: c_int,
     reason: *const c_char,
     user_data: *mut c_void,
-)
-where
+) where
     F: FnMut(String, c_int, String),
 {
     let user_data = &mut *(user_data as *mut F);
-    user_data(string_from_ptr(url), error.into(), string_from_ptr(reason));    
+    user_data(string_from_ptr(url), error.into(), string_from_ptr(reason));
 }
 
 fn get_download_progress_finish<F>(_closure: &F) -> ZyppDownloadFinishCallback
 where
-F: FnMut(String, c_int, String),
+    F: FnMut(String, c_int, String),
 {
     Some(download_progress_finish::<F>)
 }
 
 pub(crate) fn with_c_download_callbacks<R, F>(callbacks: &impl DownloadProgress, block: &mut F) -> R
-where 
-    F: FnMut(DownloadProgressCallbacks) -> R
+where
+    F: FnMut(DownloadProgressCallbacks) -> R,
 {
-    let mut start_call = | url: String, localfile: String| callbacks.start(&url, &localfile);
+    let mut start_call = |url: String, localfile: String| callbacks.start(&url, &localfile);
     let cb_start = get_download_progress_start(&start_call);
-    let mut progress_call = | value, url: String, bps_avg, bps_current| callbacks.progress(value, &url, bps_avg, bps_current);
+    let mut progress_call = |value, url: String, bps_avg, bps_current| {
+        callbacks.progress(value, &url, bps_avg, bps_current)
+    };
     let cb_progress = get_download_progress_progress(&progress_call);
-    let mut problem_call = | url: String, error, description: String| callbacks.problem(&url, error, &description);
+    let mut problem_call =
+        |url: String, error, description: String| callbacks.problem(&url, error, &description);
     let cb_problem = get_download_progress_problem(&problem_call);
-    let mut finish_call = | url: String, error, description: String| callbacks.finish(&url, error, &description);
+    let mut finish_call =
+        |url: String, error, description: String| callbacks.finish(&url, error, &description);
     let cb_finish = get_download_progress_finish(&finish_call);
 
     let callbacks = DownloadProgressCallbacks {

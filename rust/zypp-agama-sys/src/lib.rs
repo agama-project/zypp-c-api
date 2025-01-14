@@ -6,6 +6,9 @@ include!("bindings.rs");
 
 impl Default for Status {
     fn default() -> Self {
-        Self { state: Status_STATE_STATE_SUCCEED, error: std::ptr::null_mut() }
+        Self {
+            state: Status_STATE_STATE_SUCCEED,
+            error: std::ptr::null_mut(),
+        }
     }
 }

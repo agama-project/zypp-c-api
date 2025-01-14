@@ -109,7 +109,13 @@ const _: () = {
     ["Offset of field: Status::state"][::std::mem::offset_of!(Status, state) - 0usize];
     ["Offset of field: Status::error"][::std::mem::offset_of!(Status, error) - 8usize];
 };
-#[doc = " Progress reporting callback used by methods that takes longer.\n @param text  text for user describing what is happening now\n @param stage current stage number starting with 0\n @param total count of stages. It should not change during single call of method.\n @param user_data is never touched by method and is used only to pass local data for callback\n @todo Do we want to support response for callback that allows early exit of execution?"]
+#[doc = " Opaque Zypp context"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Zypp {
+    _unused: [u8; 0],
+}
+#[doc = " Progress reporting callback used by methods that takes longer.\n @param text  text for user describing what is happening now\n @param stage current stage number starting with 0\n @param total count of stages. It should not change during single call of\n method.\n @param user_data is never touched by method and is used only to pass local\n data for callback\n @todo Do we want to support response for callback that allows early exit of\n execution?"]
 pub type ProgressCallback = ::std::option::Option<
     unsafe extern "C" fn(
         text: *const ::std::os::raw::c_char,
@@ -128,7 +134,7 @@ pub type RESOLVABLE_KIND = ::std::os::raw::c_uint;
 pub const RESOLVABLE_SELECTED_NOT_SELECTED: RESOLVABLE_SELECTED = 0;
 #[doc = " dependency solver select resolvable\n match TransactByValue::SOLVER"]
 pub const RESOLVABLE_SELECTED_SOLVER_SELECTED: RESOLVABLE_SELECTED = 1;
-#[doc = " installation proposal selects resolvable\n match TransactByValue::APPL_{LOW,HIGH} we do not need both, so we use just one value"]
+#[doc = " installation proposal selects resolvable\n match TransactByValue::APPL_{LOW,HIGH} we do not need both, so we use just\n one value"]
 pub const RESOLVABLE_SELECTED_APPLICATION_SELECTED: RESOLVABLE_SELECTED = 2;
 #[doc = " user select resolvable for installation\n match TransactByValue::USER"]
 pub const RESOLVABLE_SELECTED_USER_SELECTED: RESOLVABLE_SELECTED = 3;
@@ -148,6 +154,7 @@ const _: () = {
     ["Offset of field: PatternNames::names"][::std::mem::offset_of!(PatternNames, names) - 0usize];
     ["Offset of field: PatternNames::size"][::std::mem::offset_of!(PatternNames, size) - 8usize];
 };
+#[doc = " Info from zypp::Pattern.\n https://doc.opensuse.org/projects/libzypp/HEAD/classzypp_1_1Pattern.html"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct PatternInfo {
@@ -239,63 +246,82 @@ extern "C" {
         user_data: *mut ::std::os::raw::c_void,
     );
     pub fn free_status(s: *mut Status);
-    #[doc = " Initialize Zypp target (where to install packages to)\n @param root\n @param[out] status\n @param progress\n @param user_data"]
+    #[doc = " Initialize Zypp target (where to install packages to).\n The returned zypp context is not thread safe and should be protected by a\n mutex in the calling layer.\n @param root\n @param[out] status\n @param progress\n @param user_data\n @return zypp context"]
     pub fn init_target(
         root: *const ::std::os::raw::c_char,
         status: *mut Status,
         progress: ProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
-    );
-    #[doc = " Marks resolvable for installation\n @param name resolvable name\n @param kind kind of resolvable\n @param who who do selection. If NOT_SELECTED is used, it will be empty operation.\n @param[out] status (will overwrite existing contents)"]
+    ) -> *mut Zypp;
+    #[doc = " Marks resolvable for installation\n @param zypp see \\ref init_target\n @param name resolvable name\n @param kind kind of resolvable\n @param who who do selection. If NOT_SELECTED is used, it will be empty\n operation.\n @param[out] status (will overwrite existing contents)"]
     pub fn resolvable_select(
+        zypp: *mut Zypp,
         name: *const ::std::os::raw::c_char,
         kind: RESOLVABLE_KIND,
         who: RESOLVABLE_SELECTED,
         status: *mut Status,
     );
-    #[doc = " Unselect resolvable for installation. It can still be installed as dependency.\n @param name resolvable name\n @param kind kind of resolvable\n @param who who do unselection. Only unselect if it is higher or equal level then who do the selection.\n @param[out] status (will overwrite existing contents)"]
+    #[doc = " Unselect resolvable for installation. It can still be installed as\n dependency.\n @param zypp see \\ref init_target\n @param name resolvable name\n @param kind kind of resolvable\n @param who who do unselection. Only unselect if it is higher or equal level\n then who do the selection.\n @param[out] status (will overwrite existing contents)"]
     pub fn resolvable_unselect(
+        zypp: *mut Zypp,
         name: *const ::std::os::raw::c_char,
         kind: RESOLVABLE_KIND,
         who: RESOLVABLE_SELECTED,
         status: *mut Status,
     );
-    pub fn get_patterns_info(names: PatternNames, status: *mut Status) -> PatternInfos;
+    #[doc = " Get Pattern details.\n Unknown patterns are simply omitted from the result. Match by\n PatternInfo.name, not by index."]
+    pub fn get_patterns_info(
+        _zypp: *mut Zypp,
+        names: PatternNames,
+        status: *mut Status,
+    ) -> PatternInfos;
     pub fn free_pattern_infos(infos: *const PatternInfos);
-    pub fn import_gpg_key(pathname: *const ::std::os::raw::c_char, status: *mut Status);
-    #[doc = " Runs solver\n @param[out] status (will overwrite existing contents)\n @return true if solver pass and false if it found some dependency issues"]
-    pub fn run_solver(status: *mut Status) -> bool;
+    pub fn import_gpg_key(
+        zypp: *mut Zypp,
+        pathname: *const ::std::os::raw::c_char,
+        status: *mut Status,
+    );
+    #[doc = " Runs solver\n @param zypp see \\ref init_target\n @param[out] status (will overwrite existing contents)\n @return true if solver pass and false if it found some dependency issues"]
+    pub fn run_solver(zypp: *mut Zypp, status: *mut Status) -> bool;
     #[doc = " the last call that will free all pointers to zypp holded by agama"]
-    pub fn free_zypp();
-    #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory\n @param[out] status (will overwrite existing contents)"]
-    pub fn list_repositories(status: *mut Status) -> RepositoryList;
+    pub fn free_zypp(zypp: *mut Zypp);
+    #[doc = " repository array in list.\n when no longer needed, use \\ref free_repository_list to release memory\n @param zypp see \\ref init_target\n @param[out] status (will overwrite existing contents)"]
+    pub fn list_repositories(zypp: *mut Zypp, status: *mut Status) -> RepositoryList;
     pub fn free_repository_list(repo_list: *mut RepositoryList);
-    #[doc = " Adds repository to repo manager\n @param alias have to be unique\n @param url can contain repo variables\n @param[out] status (will overwrite existing contents)\n @param callback pointer to function with callback or NULL\n @param user_data"]
+    #[doc = " Adds repository to repo manager\n @param zypp see \\ref init_target\n @param alias have to be unique\n @param url can contain repo variables\n @param[out] status (will overwrite existing contents)\n @param callback pointer to function with callback or NULL\n @param user_data"]
     pub fn add_repository(
+        zypp: *mut Zypp,
         alias: *const ::std::os::raw::c_char,
         url: *const ::std::os::raw::c_char,
         status: *mut Status,
         callback: ZyppProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
-    #[doc = " Removes repository from repo manager\n @param alias have to be unique\n @param[out] status (will overwrite existing contents)\n @param callback pointer to function with callback or NULL\n @param user_data"]
+    #[doc = " Removes repository from repo manager\n @param zypp see \\ref init_target\n @param alias have to be unique\n @param[out] status (will overwrite existing contents)\n @param callback pointer to function with callback or NULL\n @param user_data"]
     pub fn remove_repository(
+        zypp: *mut Zypp,
         alias: *const ::std::os::raw::c_char,
         status: *mut Status,
         callback: ZyppProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
-    #[doc = "\n @param alias alias of repository to refresh\n @param[out] status (will overwrite existing contents)\n @param callbacks pointer to struct with callbacks or NULL if no progress is needed"]
+    #[doc = "\n @param zypp see \\ref init_target\n @param alias alias of repository to refresh\n @param[out] status (will overwrite existing contents)\n @param callbacks pointer to struct with callbacks or NULL if no progress is\n needed"]
     pub fn refresh_repository(
+        zypp: *mut Zypp,
         alias: *const ::std::os::raw::c_char,
         status: *mut Status,
         callbacks: *mut DownloadProgressCallbacks,
     );
     pub fn build_repository_cache(
+        zypp: *mut Zypp,
         alias: *const ::std::os::raw::c_char,
         status: *mut Status,
         callback: ZyppProgressCallback,
         user_data: *mut ::std::os::raw::c_void,
     );
-    pub fn load_repository_cache(alias: *const ::std::os::raw::c_char, status: *mut Status);
+    pub fn load_repository_cache(
+        zypp: *mut Zypp,
+        alias: *const ::std::os::raw::c_char,
+        status: *mut Status,
+    );
 }
