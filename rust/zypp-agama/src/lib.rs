@@ -1,6 +1,7 @@
 use std::{
     ffi::CString,
-    os::raw::{c_char, c_uint, c_void}, sync::{Mutex, MutexGuard},
+    os::raw::{c_char, c_uint, c_void},
+    sync::{Mutex, MutexGuard},
 };
 
 pub use callbacks::DownloadProgress;
@@ -23,6 +24,18 @@ pub struct Repository {
     pub url: String,
     pub alias: String,
     pub user_name: String,
+}
+
+// TODO: should we add also e.g. serd serializers here?
+#[derive(Debug)]
+pub struct PatternInfo {
+    pub name: String,
+    pub category: String,
+    pub icon: String,
+    pub description: String,
+    pub summary: String,
+    pub order: String,
+    pub selected: ResolvableSelected,
 }
 
 // TODO: is there better way how to use type from ProgressCallback binding type?
@@ -71,67 +84,316 @@ pub struct Zypp {
 
 impl Zypp {
     pub fn init_target<F>(root: &str, progress: F) -> ZyppResult<Self>
-where
-    // cannot be FnOnce, the whole point of progress callbacks is
-    // to provide feedback multiple times
-    F: FnMut(String, u32, u32),
-{
-    let mut locked = GLOBAL_LOCK.lock().unwrap(); // nicer handling of poisoned threads
-    if *locked {
-        panic!("Init target already called and holding zypp pointer.")
-    }
-    *locked = true;
+    where
+        // cannot be FnOnce, the whole point of progress callbacks is
+        // to provide feedback multiple times
+        F: FnMut(String, u32, u32),
+    {
+        let mut locked = GLOBAL_LOCK.lock().unwrap(); // nicer handling of poisoned threads
+        if *locked {
+            panic!("Init target already called and holding zypp pointer.")
+        }
 
-    unsafe {        
-        let mut closure = progress;
-        let cb = get_progress_callback(&closure);
-        let c_root = CString::new(root).unwrap();
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _ as *mut Status;
-        let inner_zypp = zypp_agama_sys::init_target(
-            c_root.as_ptr(),
-            status_ptr,
-            cb,
-            &mut closure as *mut _ as *mut c_void,
-        );
-        let res = Self{ inner:  Mutex::new(inner_zypp) };
-        helpers::status_to_result_void(status)?;
-        Ok(res)
+        unsafe {
+            let mut closure = progress;
+            let cb = get_progress_callback(&closure);
+            let c_root = CString::new(root).unwrap();
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _ as *mut Status;
+            let inner_zypp = zypp_agama_sys::init_target(
+                c_root.as_ptr(),
+                status_ptr,
+                cb,
+                &mut closure as *mut _ as *mut c_void,
+            );
+            helpers::status_to_result_void(status)?;
+            // lock only after we successfully get pointer
+            *locked = true;
+            let res = Self {
+                inner: Mutex::new(inner_zypp),
+            };
+            Ok(res)
+        }
     }
-}
 
     fn get_zypp_ptr(&self) -> MutexGuard<*mut zypp_agama_sys::Zypp> {
         self.inner.lock().unwrap()
     }
 
     pub fn list_repositories(&self) -> ZyppResult<Vec<Repository>> {
-    let mut repos_v = vec![];
+        let mut repos_v = vec![];
 
-    unsafe {
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _ as *mut Status;
+        unsafe {
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _ as *mut Status;
 
-        let mut repos = zypp_agama_sys::list_repositories(*self.get_zypp_ptr(), status_ptr);
-        // unwrap is ok as it will crash only on less then 32b archs,so safe for agama
-        let size_usize: usize = repos.size.try_into().unwrap();
-        for i in 0..size_usize {
-            let c_repo = *(repos.repos.add(i));
-            let r_repo = Repository {
-                enabled: c_repo.enabled,
-                url: string_from_ptr(c_repo.url),
-                alias: string_from_ptr(c_repo.alias),
-                user_name: string_from_ptr(c_repo.userName),
-            };
-            repos_v.push(r_repo);
+            let mut repos = zypp_agama_sys::list_repositories(*self.get_zypp_ptr(), status_ptr);
+            // unwrap is ok as it will crash only on less then 32b archs,so safe for agama
+            let size_usize: usize = repos.size.try_into().unwrap();
+            for i in 0..size_usize {
+                let c_repo = *(repos.repos.add(i));
+                let r_repo = Repository {
+                    enabled: c_repo.enabled,
+                    url: string_from_ptr(c_repo.url),
+                    alias: string_from_ptr(c_repo.alias),
+                    user_name: string_from_ptr(c_repo.userName),
+                };
+                repos_v.push(r_repo);
+            }
+            let repos_rawp = &mut repos;
+            zypp_agama_sys::free_repository_list(
+                repos_rawp as *mut _ as *mut zypp_agama_sys::RepositoryList,
+            );
+
+            helpers::status_to_result_void(status).and(Ok(repos_v))
         }
-        let repos_rawp = &mut repos;
-        zypp_agama_sys::free_repository_list(
-            repos_rawp as *mut _ as *mut zypp_agama_sys::RepositoryList,
-        );
-
-        helpers::status_to_result_void(status).and(Ok(repos_v))
     }
-}
+
+    pub fn patterns_info(&self, names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
+        unsafe {
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _;
+            let c_names: Vec<CString> = names
+                .iter()
+                .map(|s| CString::new(*s).expect("CString must not contain internal NUL"))
+                .collect();
+            let c_ptr_names: Vec<*const i8> =
+                c_names.iter().map(|c| c.as_c_str().as_ptr()).collect();
+            let pattern_names = PatternNames {
+                size: names.len() as u32,
+                names: c_ptr_names.as_ptr(),
+            };
+            let infos = get_patterns_info(*self.get_zypp_ptr(), pattern_names, status_ptr);
+            helpers::status_to_result_void(status)?;
+
+            let mut r_infos = Vec::with_capacity(infos.size as usize);
+            for i in 0..infos.size as usize {
+                let c_info = *(infos.infos.add(i));
+                let r_info = PatternInfo {
+                    name: string_from_ptr(c_info.name),
+                    category: string_from_ptr(c_info.category),
+                    icon: string_from_ptr(c_info.icon),
+                    description: string_from_ptr(c_info.description),
+                    summary: string_from_ptr(c_info.summary),
+                    order: string_from_ptr(c_info.order),
+                    selected: c_info.selected.into(),
+                };
+                r_infos.push(r_info);
+            }
+            zypp_agama_sys::free_pattern_infos(&infos);
+            Ok(r_infos)
+        }
+    }
+
+    pub fn import_gpg_key(&self, file_path: &str) -> ZyppResult<()> {
+        unsafe {
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _;
+            let c_path = CString::new(file_path).expect("CString must not contain internal NUL");
+            zypp_agama_sys::import_gpg_key(*self.get_zypp_ptr(), c_path.as_ptr(), status_ptr);
+            status_to_result_void(status)
+        }
+    }
+
+    pub fn select_resolvable(
+        &self,
+        name: &str,
+        kind: ResolvableKind,
+        who: ResolvableSelected,
+    ) -> ZyppResult<()> {
+        unsafe {
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _;
+            let c_name = CString::new(name).unwrap();
+            let c_kind = kind.into();
+            zypp_agama_sys::resolvable_select(
+                *self.get_zypp_ptr(),
+                c_name.as_ptr(),
+                c_kind,
+                who.into(),
+                status_ptr,
+            );
+            return helpers::status_to_result_void(status);
+        }
+    }
+
+    pub fn unselect_resolvable(
+        &self,
+        name: &str,
+        kind: ResolvableKind,
+        who: ResolvableSelected,
+    ) -> ZyppResult<()> {
+        unsafe {
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _;
+            let c_name = CString::new(name).unwrap();
+            let c_kind = kind.into();
+            zypp_agama_sys::resolvable_unselect(
+                *self.get_zypp_ptr(),
+                c_name.as_ptr(),
+                c_kind,
+                who.into(),
+                status_ptr,
+            );
+            return helpers::status_to_result_void(status);
+        }
+    }
+
+    pub fn refresh_repository(
+        &self,
+        alias: &str,
+        progress: &impl DownloadProgress,
+    ) -> ZyppResult<()> {
+        unsafe {
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _ as *mut Status;
+            let c_alias = CString::new(alias).unwrap();
+            let mut refresh_fn = |mut callbacks| {
+                zypp_agama_sys::refresh_repository(
+                    *self.get_zypp_ptr(),
+                    c_alias.as_ptr(),
+                    status_ptr,
+                    &mut callbacks,
+                )
+            };
+            callbacks::with_c_download_callbacks(progress, &mut refresh_fn);
+            return helpers::status_to_result_void(status);
+        }
+    }
+
+    pub fn add_repository<F>(&self, alias: &str, url: &str, progress: F) -> ZyppResult<()>
+    where
+        F: FnMut(i64, String) -> bool,
+    {
+        unsafe {
+            let mut closure = progress;
+            let cb = get_zypp_progress_callback(&closure);
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _ as *mut Status;
+            let c_alias = CString::new(alias).unwrap();
+            let c_url = CString::new(url).unwrap();
+            zypp_agama_sys::add_repository(
+                *self.get_zypp_ptr(),
+                c_alias.as_ptr(),
+                c_url.as_ptr(),
+                status_ptr,
+                cb,
+                &mut closure as *mut _ as *mut c_void,
+            );
+            return helpers::status_to_result_void(status);
+        }
+    }
+
+    pub fn remove_repository<F>(&self, alias: &str, progress: F) -> ZyppResult<()>
+    where
+        F: FnMut(i64, String) -> bool,
+    {
+        unsafe {
+            let mut closure = progress;
+            let cb = get_zypp_progress_callback(&closure);
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _ as *mut Status;
+            let c_alias = CString::new(alias).unwrap();
+            zypp_agama_sys::remove_repository(
+                *self.get_zypp_ptr(),
+                c_alias.as_ptr(),
+                status_ptr,
+                cb,
+                &mut closure as *mut _ as *mut c_void,
+            );
+            return helpers::status_to_result_void(status);
+        }
+    }
+
+    pub fn create_repo_cache<F>(&self, alias: &str, progress: F) -> ZyppResult<()>
+    where
+        F: FnMut(i64, String) -> bool,
+    {
+        unsafe {
+            let mut closure = progress;
+            let cb = get_zypp_progress_callback(&closure);
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _ as *mut Status;
+            let c_alias = CString::new(alias).unwrap();
+            zypp_agama_sys::build_repository_cache(
+                *self.get_zypp_ptr(),
+                c_alias.as_ptr(),
+                status_ptr,
+                cb,
+                &mut closure as *mut _ as *mut c_void,
+            );
+            return helpers::status_to_result_void(status);
+        }
+    }
+
+    pub fn load_repo_cache(&self, alias: &str) -> ZyppResult<()> {
+        unsafe {
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _ as *mut Status;
+            let c_alias = CString::new(alias).unwrap();
+            zypp_agama_sys::load_repository_cache(
+                *self.get_zypp_ptr(),
+                c_alias.as_ptr(),
+                status_ptr,
+            );
+            return helpers::status_to_result_void(status);
+        }
+    }
+
+    pub fn run_solver(&self) -> ZyppResult<bool> {
+        unsafe {
+            let mut status: Status = Status::default();
+            let status_ptr = &mut status as *mut _;
+            let r_res = zypp_agama_sys::run_solver(*self.get_zypp_ptr(), status_ptr);
+            let result = helpers::status_to_result_void(status);
+            result.and(Ok(r_res))
+        }
+    }
+
+    // high level method to load source
+    pub fn load_source<F>(&self, progress: F) -> ZyppResult<()>
+    where
+        F: Fn(i64, String) -> bool,
+    {
+        let repos = self.list_repositories()?;
+        let enabled_repos: Vec<&Repository> = repos.iter().filter(|r| r.enabled).collect();
+        // TODO: this step logic for progress can be enclosed to own struct
+        let mut percent: f64 = 0.0;
+        let percent_step: f64 = 100.0 / (enabled_repos.len() as f64 * 3.0); // 3 substeps
+        let abort_err = Err(ZyppError::new("Operation aborted"));
+        let mut cont: bool;
+        for i in enabled_repos {
+            cont = progress(
+                percent.floor() as i64,
+                format!("Refreshing repository {}", &i.alias).to_string(),
+            );
+            if !cont {
+                return abort_err;
+            }
+            self.refresh_repository(&i.alias, &callbacks::EmptyDownloadProgress)?;
+            percent += percent_step;
+            cont = progress(
+                percent.floor() as i64,
+                format!("Creating repository cache for {}", &i.alias).to_string(),
+            );
+            if !cont {
+                return abort_err;
+            }
+            self.create_repo_cache(&i.alias, callbacks::empty_progress)?;
+            percent += percent_step;
+            cont = progress(
+                percent.floor() as i64,
+                format!("Loading repository cache for {}", &i.alias).to_string(),
+            );
+            if !cont {
+                return abort_err;
+            }
+            self.load_repo_cache(&i.alias)?;
+            percent += percent_step;
+        }
+        progress(100, "Loading repositories finished".to_string());
+        Ok(())
+    }
 }
 
 impl Drop for Zypp {
@@ -141,103 +403,6 @@ impl Drop for Zypp {
             let ptr = self.inner.lock().unwrap();
             zypp_agama_sys::free_zypp(*ptr);
         }
-    }
-}
-
-pub fn refresh_repository(
-    zypp: &Zypp,
-    alias: &str,
-    progress: &impl DownloadProgress,
-) -> ZyppResult<()> {
-    unsafe {
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _ as *mut Status;
-        let c_alias = CString::new(alias).unwrap();
-        let mut refresh_fn = |mut callbacks| {
-            zypp_agama_sys::refresh_repository(
-                zypp.inner(),
-                c_alias.as_ptr(),
-                status_ptr,
-                &mut callbacks,
-            )
-        };
-        callbacks::with_c_download_callbacks(progress, &mut refresh_fn);
-        return helpers::status_to_result_void(status);
-    }
-}
-
-pub fn add_repository<F>(zypp: &Zypp, alias: &str, url: &str, progress: F) -> ZyppResult<()>
-where
-    F: FnMut(i64, String) -> bool,
-{
-    unsafe {
-        let mut closure = progress;
-        let cb = get_zypp_progress_callback(&closure);
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _ as *mut Status;
-        let c_alias = CString::new(alias).unwrap();
-        let c_url = CString::new(url).unwrap();
-        zypp_agama_sys::add_repository(
-            zypp.inner(),
-            c_alias.as_ptr(),
-            c_url.as_ptr(),
-            status_ptr,
-            cb,
-            &mut closure as *mut _ as *mut c_void,
-        );
-        return helpers::status_to_result_void(status);
-    }
-}
-
-pub fn remove_repository<F>(zypp: &Zypp, alias: &str, progress: F) -> ZyppResult<()>
-where
-    F: FnMut(i64, String) -> bool,
-{
-    unsafe {
-        let mut closure = progress;
-        let cb = get_zypp_progress_callback(&closure);
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _ as *mut Status;
-        let c_alias = CString::new(alias).unwrap();
-        zypp_agama_sys::remove_repository(
-            zypp.inner(),
-            c_alias.as_ptr(),
-            status_ptr,
-            cb,
-            &mut closure as *mut _ as *mut c_void,
-        );
-        return helpers::status_to_result_void(status);
-    }
-}
-
-pub fn create_repo_cache<F>(zypp: &Zypp, alias: &str, progress: F) -> ZyppResult<()>
-where
-    F: FnMut(i64, String) -> bool,
-{
-    unsafe {
-        let mut closure = progress;
-        let cb = get_zypp_progress_callback(&closure);
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _ as *mut Status;
-        let c_alias = CString::new(alias).unwrap();
-        zypp_agama_sys::build_repository_cache(
-            zypp.inner(),
-            c_alias.as_ptr(),
-            status_ptr,
-            cb,
-            &mut closure as *mut _ as *mut c_void,
-        );
-        return helpers::status_to_result_void(status);
-    }
-}
-
-pub fn load_repo_cache(zypp: &Zypp, alias: &str) -> ZyppResult<()> {
-    unsafe {
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _ as *mut Status;
-        let c_alias = CString::new(alias).unwrap();
-        zypp_agama_sys::load_repository_cache(zypp.inner(), c_alias.as_ptr(), status_ptr);
-        return helpers::status_to_result_void(status);
     }
 }
 
@@ -258,50 +423,6 @@ impl Into<zypp_agama_sys::RESOLVABLE_KIND> for ResolvableKind {
             Self::Product => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PRODUCT,
             Self::Pattern => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PATTERN,
         }
-    }
-}
-
-pub fn select_resolvable(
-    zypp: &Zypp,
-    name: &str,
-    kind: ResolvableKind,
-    who: ResolvableSelected,
-) -> ZyppResult<()> {
-    unsafe {
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _;
-        let c_name = CString::new(name).unwrap();
-        let c_kind = kind.into();
-        zypp_agama_sys::resolvable_select(
-            zypp.inner(),
-            c_name.as_ptr(),
-            c_kind,
-            who.into(),
-            status_ptr,
-        );
-        return helpers::status_to_result_void(status);
-    }
-}
-
-pub fn unselect_resolvable(
-    zypp: &Zypp,
-    name: &str,
-    kind: ResolvableKind,
-    who: ResolvableSelected,
-) -> ZyppResult<()> {
-    unsafe {
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _;
-        let c_name = CString::new(name).unwrap();
-        let c_kind = kind.into();
-        zypp_agama_sys::resolvable_unselect(
-            zypp.inner(),
-            c_name.as_ptr(),
-            c_kind,
-            who.into(),
-            status_ptr,
-        );
-        return helpers::status_to_result_void(status);
     }
 }
 
@@ -336,118 +457,6 @@ impl Into<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
     }
 }
 
-// TODO: should we add also e.g. serd serializers here?
-#[derive(Debug)]
-pub struct PatternInfo {
-    pub name: String,
-    pub category: String,
-    pub icon: String,
-    pub description: String,
-    pub summary: String,
-    pub order: String,
-    pub selected: ResolvableSelected,
-}
-
-pub fn patterns_info(zypp: &Zypp, names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
-    unsafe {
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _;
-        let c_names: Vec<CString> = names
-            .iter()
-            .map(|s| CString::new(*s).expect("CString must not contain internal NUL"))
-            .collect();
-        let c_ptr_names: Vec<*const i8> = c_names.iter().map(|c| c.as_c_str().as_ptr()).collect();
-        let pattern_names = PatternNames {
-            size: names.len() as u32,
-            names: c_ptr_names.as_ptr(),
-        };
-        let infos = get_patterns_info(zypp.inner(), pattern_names, status_ptr);
-        helpers::status_to_result_void(status)?;
-
-        let mut r_infos = Vec::with_capacity(infos.size as usize);
-        for i in 0..infos.size as usize {
-            let c_info = *(infos.infos.add(i));
-            let r_info = PatternInfo {
-                name: string_from_ptr(c_info.name),
-                category: string_from_ptr(c_info.category),
-                icon: string_from_ptr(c_info.icon),
-                description: string_from_ptr(c_info.description),
-                summary: string_from_ptr(c_info.summary),
-                order: string_from_ptr(c_info.order),
-                selected: c_info.selected.into(),
-            };
-            r_infos.push(r_info);
-        }
-        zypp_agama_sys::free_pattern_infos(&infos);
-        Ok(r_infos)
-    }
-}
-
-pub fn run_solver(zypp: &Zypp) -> ZyppResult<bool> {
-    unsafe {
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _;
-        let r_res = zypp_agama_sys::run_solver(zypp.inner(), status_ptr);
-        let result = helpers::status_to_result_void(status);
-        result.and(Ok(r_res))
-    }
-}
-
-// high level method to load source
-pub fn load_source<F>(zypp: &Zypp, progress: F) -> ZyppResult<()>
-where
-    F: Fn(i64, String) -> bool,
-{
-    let repos = list_repositories(zypp)?;
-    let enabled_repos: Vec<&Repository> = repos.iter().filter(|r| r.enabled).collect();
-    // TODO: this step logic for progress can be enclosed to own struct
-    let mut percent: f64 = 0.0;
-    let percent_step: f64 = 100.0 / (enabled_repos.len() as f64 * 3.0); // 3 substeps
-    let abort_err = Err(ZyppError::new("Operation aborted"));
-    let mut cont: bool;
-    for i in enabled_repos {
-        cont = progress(
-            percent.floor() as i64,
-            format!("Refreshing repository {}", &i.alias).to_string(),
-        );
-        if !cont {
-            return abort_err;
-        }
-        refresh_repository(zypp, &i.alias, &callbacks::EmptyDownloadProgress)?;
-        percent += percent_step;
-        cont = progress(
-            percent.floor() as i64,
-            format!("Creating repository cache for {}", &i.alias).to_string(),
-        );
-        if !cont {
-            return abort_err;
-        }
-        create_repo_cache(zypp, &i.alias, callbacks::empty_progress)?;
-        percent += percent_step;
-        cont = progress(
-            percent.floor() as i64,
-            format!("Loading repository cache for {}", &i.alias).to_string(),
-        );
-        if !cont {
-            return abort_err;
-        }
-        load_repo_cache(zypp, &i.alias)?;
-        percent += percent_step;
-    }
-    progress(100, "Loading repositories finished".to_string());
-    Ok(())
-}
-
-pub fn import_gpg_key(zypp: &Zypp, file_path: &str) -> ZyppResult<()> {
-    unsafe {
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _;
-        let c_path = CString::new(file_path).expect("CString must not contain internal NUL");
-        zypp_agama_sys::import_gpg_key(zypp.inner(), c_path.as_ptr(), status_ptr);
-        status_to_result_void(status)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -460,13 +469,13 @@ mod tests {
 
     #[test]
     fn init_target_ok() -> Result<(), Box<dyn Error>> {
-        init_target("/", progress_cb)?;
+        Zypp::init_target("/", progress_cb)?;
         Ok(())
     }
 
     #[test]
     fn init_target_err() -> Result<(), Box<dyn Error>> {
-        let result = init_target("/nosuchdir", progress_cb);
+        let result = Zypp::init_target("/nosuchdir", progress_cb);
         assert!(result.is_err());
         Ok(())
     }
@@ -474,7 +483,7 @@ mod tests {
     #[test]
     fn init_target_err2() -> Result<(), Box<dyn Error>> {
         // a nonexistent relative root triggers a C++ exception
-        let result = init_target("not_absolute", progress_cb);
+        let result = Zypp::init_target("not_absolute", progress_cb);
         assert!(result.is_err());
         Ok(())
     }
@@ -485,8 +494,8 @@ mod tests {
         // Let other test threads succeed before we hog the Mutex.
         std::thread::sleep(std::time::Duration::from_millis(500));
 
-        let _z1 = init_target("/", progress_cb).unwrap();
-        let _z2 = init_target("/mnt", progress_cb).unwrap();
+        let _z1 = Zypp::init_target("/", progress_cb).unwrap();
+        let _z2 = Zypp::init_target("/mnt", progress_cb).unwrap();
     }
 
     // Init a RPM database in *root*, or do nothing if it exists
@@ -507,8 +516,8 @@ mod tests {
         let root = root_buf.to_str().expect("CWD is not UTF-8");
 
         init_rpmdb(root)?;
-        let zypp = init_target(root, progress_cb)?;
-        let repos = list_repositories(&zypp)?;
+        let zypp = Zypp::init_target(root, progress_cb)?;
+        let repos = zypp.list_repositories()?;
         assert!(repos.len() == 1);
         Ok(())
     }
