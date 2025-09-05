@@ -1,6 +1,6 @@
 use std::{
     ffi::CString,
-    os::raw::{c_char, c_uint, c_void},
+    os::raw::{c_char, c_uint, c_void}, sync::{Mutex, MutexGuard},
 };
 
 pub use callbacks::DownloadProgress;
@@ -15,9 +15,7 @@ pub use errors::ZyppError;
 mod helpers;
 use helpers::{status_to_result_void, string_from_ptr};
 
-mod callbacks;
-mod zypp;
-use zypp::Zypp;
+pub mod callbacks;
 
 #[derive(Debug)]
 pub struct Repository {
@@ -25,6 +23,19 @@ pub struct Repository {
     pub url: String,
     pub alias: String,
     pub user_name: String,
+}
+
+
+// TODO: should we add also e.g. serd serializers here?
+#[derive(Debug)]
+pub struct PatternInfo {
+    pub name: String,
+    pub category: String,
+    pub icon: String,
+    pub description: String,
+    pub summary: String,
+    pub order: String,
+    pub selected: ResolvableSelected,
 }
 
 // TODO: is there better way how to use type from ProgressCallback binding type?
@@ -66,14 +77,25 @@ where
     Some(progress_callback::<F>)
 }
 
-pub fn init_target<F>(root: &str, progress: F) -> ZyppResult<Zypp>
+static GLOBAL_LOCK: Mutex<bool> = Mutex::new(false);
+pub struct Zypp {
+    inner: Mutex<*mut zypp_agama_sys::Zypp>,
+}
+
+impl Zypp {
+    pub fn init_target<F>(root: &str, progress: F) -> ZyppResult<Self>
 where
     // cannot be FnOnce, the whole point of progress callbacks is
     // to provide feedback multiple times
     F: FnMut(String, u32, u32),
 {
-    unsafe {
-        let mut zypp = Zypp::lock();
+    let mut locked = GLOBAL_LOCK.lock().unwrap(); // nicer handling of poisoned threads
+    if *locked {
+        panic!("Init target already called and holding zypp pointer.")
+    }
+    *locked = true;
+
+    unsafe {        
         let mut closure = progress;
         let cb = get_progress_callback(&closure);
         let c_root = CString::new(root).unwrap();
@@ -85,20 +107,24 @@ where
             cb,
             &mut closure as *mut _ as *mut c_void,
         );
-        zypp.set(inner_zypp);
+        let res = Self{ inner:  Mutex::new(inner_zypp) };
         helpers::status_to_result_void(status)?;
-        Ok(zypp)
+        Ok(res)
     }
 }
 
-pub fn list_repositories(zypp: &Zypp) -> ZyppResult<Vec<Repository>> {
+    fn get_zypp_ptr(&self) -> MutexGuard<*mut zypp_agama_sys::Zypp> {
+        self.inner.lock().unwrap()
+    }
+
+    pub fn list_repositories(&self) -> ZyppResult<Vec<Repository>> {
     let mut repos_v = vec![];
 
     unsafe {
         let mut status: Status = Status::default();
         let status_ptr = &mut status as *mut _ as *mut Status;
 
-        let mut repos = zypp_agama_sys::list_repositories(zypp.inner(), status_ptr);
+        let mut repos = zypp_agama_sys::list_repositories(*self.get_zypp_ptr(), status_ptr);
         // unwrap is ok as it will crash only on less then 32b archs,so safe for agama
         let size_usize: usize = repos.size.try_into().unwrap();
         for i in 0..size_usize {
@@ -117,6 +143,52 @@ pub fn list_repositories(zypp: &Zypp) -> ZyppResult<Vec<Repository>> {
         );
 
         helpers::status_to_result_void(status).and(Ok(repos_v))
+    }
+}
+
+pub fn patterns_info(&self, names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
+    unsafe {
+        let mut status: Status = Status::default();
+        let status_ptr = &mut status as *mut _;
+        let c_names: Vec<CString> = names
+            .iter()
+            .map(|s| CString::new(*s).expect("CString must not contain internal NUL"))
+            .collect();
+        let c_ptr_names: Vec<*const i8> = c_names.iter().map(|c| c.as_c_str().as_ptr()).collect();
+        let pattern_names = PatternNames {
+            size: names.len() as u32,
+            names: c_ptr_names.as_ptr(),
+        };
+        let infos = get_patterns_info(*self.get_zypp_ptr(), pattern_names, status_ptr);
+        helpers::status_to_result_void(status)?;
+
+        let mut r_infos = Vec::with_capacity(infos.size as usize);
+        for i in 0..infos.size as usize {
+            let c_info = *(infos.infos.add(i));
+            let r_info = PatternInfo {
+                name: string_from_ptr(c_info.name),
+                category: string_from_ptr(c_info.category),
+                icon: string_from_ptr(c_info.icon),
+                description: string_from_ptr(c_info.description),
+                summary: string_from_ptr(c_info.summary),
+                order: string_from_ptr(c_info.order),
+                selected: c_info.selected.into(),
+            };
+            r_infos.push(r_info);
+        }
+        zypp_agama_sys::free_pattern_infos(&infos);
+        Ok(r_infos)
+    }
+}
+}
+
+impl Drop for Zypp {
+    fn drop(&mut self) {
+        // println!("dropping Zypp");
+        unsafe {
+            let ptr = self.inner.lock().unwrap();
+            zypp_agama_sys::free_zypp(*ptr);
+        }
     }
 }
 
@@ -309,53 +381,6 @@ impl Into<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
             Self::Installation => zypp_agama_sys::RESOLVABLE_SELECTED_APPLICATION_SELECTED,
             Self::Solver => zypp_agama_sys::RESOLVABLE_SELECTED_SOLVER_SELECTED,
         }
-    }
-}
-
-// TODO: should we add also e.g. serd serializers here?
-#[derive(Debug)]
-pub struct PatternInfo {
-    pub name: String,
-    pub category: String,
-    pub icon: String,
-    pub description: String,
-    pub summary: String,
-    pub order: String,
-    pub selected: ResolvableSelected,
-}
-
-pub fn patterns_info(zypp: &Zypp, names: Vec<&str>) -> ZyppResult<Vec<PatternInfo>> {
-    unsafe {
-        let mut status: Status = Status::default();
-        let status_ptr = &mut status as *mut _;
-        let c_names: Vec<CString> = names
-            .iter()
-            .map(|s| CString::new(*s).expect("CString must not contain internal NUL"))
-            .collect();
-        let c_ptr_names: Vec<*const i8> = c_names.iter().map(|c| c.as_c_str().as_ptr()).collect();
-        let pattern_names = PatternNames {
-            size: names.len() as u32,
-            names: c_ptr_names.as_ptr(),
-        };
-        let infos = get_patterns_info(zypp.inner(), pattern_names, status_ptr);
-        helpers::status_to_result_void(status)?;
-
-        let mut r_infos = Vec::with_capacity(infos.size as usize);
-        for i in 0..infos.size as usize {
-            let c_info = *(infos.infos.add(i));
-            let r_info = PatternInfo {
-                name: string_from_ptr(c_info.name),
-                category: string_from_ptr(c_info.category),
-                icon: string_from_ptr(c_info.icon),
-                description: string_from_ptr(c_info.description),
-                summary: string_from_ptr(c_info.summary),
-                order: string_from_ptr(c_info.order),
-                selected: c_info.selected.into(),
-            };
-            r_infos.push(r_info);
-        }
-        zypp_agama_sys::free_pattern_infos(&infos);
-        Ok(r_infos)
     }
 }
 
