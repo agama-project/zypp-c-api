@@ -5,4 +5,3 @@ edition = "2021"
 
 [dependencies]
 zypp-agama-sys = { path="../zypp-agama-sys" }
-tokio = { version = "1.40.0", features = ["macros", "rt-multi-thread"] }
