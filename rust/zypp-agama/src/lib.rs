@@ -82,6 +82,10 @@ pub struct Zypp {
     inner: Mutex<*mut zypp_agama_sys::Zypp>,
 }
 
+unsafe impl std::marker::Send for Zypp {}
+unsafe impl std::marker::Sync for Zypp {}
+
+
 impl Zypp {
     pub fn init_target<F>(root: &str, progress: F) -> ZyppResult<Self>
     where
