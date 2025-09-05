@@ -1,9 +1,11 @@
-use std::sync::{Mutex, MutexGuard, TryLockError};
+use tokio::sync::{Mutex, MutexGuard, TryLockError};
+
+
 
 // Mutex for the Zypp C API which is not thread safe.
 // TODO: guard some (global) context instead of ().
 //static ZYPP_MUTEX: Mutex<*mut zypp_agama_sys::Zypp> = Mutex::new(std::ptr::null_mut());
-static ZYPP_MUTEX: Mutex<()> = Mutex::new(());
+static ZYPP_MUTEX: Mutex<()> = Mutex::const_new(());
 pub struct Zypp<'a> {
     // underscore prevents
     //     warning: field `guard` is never read
@@ -39,14 +41,8 @@ impl<'a> Zypp<'a> {
             }
 
             match result.unwrap_err() {
-                TryLockError::Poisoned(_) => {
+                TryLockError => {
                     panic!("Another thread had the ZYPP_MUTEX, and panicked.")
-                }
-                TryLockError::WouldBlock => {
-                    tries -= 1;
-                    if tries <= 0 {
-                        panic!("Another thread had the ZYPP_MUTEX for too long.");
-                    }
                 }
             }
 

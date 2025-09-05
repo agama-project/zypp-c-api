@@ -15,9 +15,9 @@ pub use errors::ZyppError;
 mod helpers;
 use helpers::{status_to_result_void, string_from_ptr};
 
-mod callbacks;
+pub mod callbacks;
 mod zypp;
-use zypp::Zypp;
+pub use zypp::Zypp;
 
 #[derive(Debug)]
 pub struct Repository {
