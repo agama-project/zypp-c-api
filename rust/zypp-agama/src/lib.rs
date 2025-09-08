@@ -400,6 +400,9 @@ impl Drop for Zypp {
         unsafe {
             zypp_agama_sys::free_zypp(self.ptr);
         }
+        // allow to init it again
+        let mut locked = GLOBAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        *locked = false;
     }
 }
 
@@ -500,8 +503,11 @@ mod tests {
     fn init_target_deadlock() {
         setup();
 
-        let _z1 = Zypp::init_target("/", progress_cb).unwrap();
+        let z1 = Zypp::init_target("/", progress_cb).unwrap();
         let _z2 = Zypp::init_target("/mnt", progress_cb).unwrap();
+
+        //fake z1 call to ensure that it is not dropped too soon
+        print!("should not reach {:?}", z1.ptr);
     }
 
     // Init a RPM database in *root*, or do nothing if it exists
