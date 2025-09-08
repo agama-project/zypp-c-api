@@ -1,7 +1,7 @@
 use std::{
     ffi::CString,
     os::raw::{c_char, c_uint, c_void},
-    sync::{Mutex, MutexGuard},
+    sync::Mutex,
 };
 
 pub use callbacks::DownloadProgress;
@@ -77,13 +77,11 @@ where
     Some(progress_callback::<F>)
 }
 
+/// protection against multiple targets and multiple zypp instances
 static GLOBAL_LOCK: Mutex<bool> = Mutex::new(false);
 pub struct Zypp {
-    inner: Mutex<*mut zypp_agama_sys::Zypp>,
+    ptr: *mut zypp_agama_sys::Zypp,
 }
-
-unsafe impl std::marker::Send for Zypp {}
-unsafe impl std::marker::Sync for Zypp {}
 
 
 impl Zypp {
@@ -93,7 +91,7 @@ impl Zypp {
         // to provide feedback multiple times
         F: FnMut(String, u32, u32),
     {
-        let mut locked = GLOBAL_LOCK.lock().unwrap(); // nicer handling of poisoned threads
+        let mut locked = GLOBAL_LOCK.lock().unwrap_or_else(|_| panic!("thread already panic")); // nicer handling of poisoned threads
         if *locked {
             panic!("Init target already called and holding zypp pointer.")
         }
@@ -114,14 +112,10 @@ impl Zypp {
             // lock only after we successfully get pointer
             *locked = true;
             let res = Self {
-                inner: Mutex::new(inner_zypp),
+                ptr: inner_zypp,
             };
             Ok(res)
         }
-    }
-
-    fn get_zypp_ptr(&self) -> MutexGuard<*mut zypp_agama_sys::Zypp> {
-        self.inner.lock().unwrap()
     }
 
     pub fn list_repositories(&self) -> ZyppResult<Vec<Repository>> {
@@ -131,7 +125,7 @@ impl Zypp {
             let mut status: Status = Status::default();
             let status_ptr = &mut status as *mut _ as *mut Status;
 
-            let mut repos = zypp_agama_sys::list_repositories(*self.get_zypp_ptr(), status_ptr);
+            let mut repos = zypp_agama_sys::list_repositories(self.ptr, status_ptr);
             // unwrap is ok as it will crash only on less then 32b archs,so safe for agama
             let size_usize: usize = repos.size.try_into().unwrap();
             for i in 0..size_usize {
@@ -167,7 +161,7 @@ impl Zypp {
                 size: names.len() as u32,
                 names: c_ptr_names.as_ptr(),
             };
-            let infos = get_patterns_info(*self.get_zypp_ptr(), pattern_names, status_ptr);
+            let infos = get_patterns_info(self.ptr, pattern_names, status_ptr);
             helpers::status_to_result_void(status)?;
 
             let mut r_infos = Vec::with_capacity(infos.size as usize);
@@ -194,7 +188,7 @@ impl Zypp {
             let mut status: Status = Status::default();
             let status_ptr = &mut status as *mut _;
             let c_path = CString::new(file_path).expect("CString must not contain internal NUL");
-            zypp_agama_sys::import_gpg_key(*self.get_zypp_ptr(), c_path.as_ptr(), status_ptr);
+            zypp_agama_sys::import_gpg_key(self.ptr, c_path.as_ptr(), status_ptr);
             status_to_result_void(status)
         }
     }
@@ -211,7 +205,7 @@ impl Zypp {
             let c_name = CString::new(name).unwrap();
             let c_kind = kind.into();
             zypp_agama_sys::resolvable_select(
-                *self.get_zypp_ptr(),
+                self.ptr,
                 c_name.as_ptr(),
                 c_kind,
                 who.into(),
@@ -233,7 +227,7 @@ impl Zypp {
             let c_name = CString::new(name).unwrap();
             let c_kind = kind.into();
             zypp_agama_sys::resolvable_unselect(
-                *self.get_zypp_ptr(),
+                self.ptr,
                 c_name.as_ptr(),
                 c_kind,
                 who.into(),
@@ -254,7 +248,7 @@ impl Zypp {
             let c_alias = CString::new(alias).unwrap();
             let mut refresh_fn = |mut callbacks| {
                 zypp_agama_sys::refresh_repository(
-                    *self.get_zypp_ptr(),
+                    self.ptr,
                     c_alias.as_ptr(),
                     status_ptr,
                     &mut callbacks,
@@ -277,7 +271,7 @@ impl Zypp {
             let c_alias = CString::new(alias).unwrap();
             let c_url = CString::new(url).unwrap();
             zypp_agama_sys::add_repository(
-                *self.get_zypp_ptr(),
+                self.ptr,
                 c_alias.as_ptr(),
                 c_url.as_ptr(),
                 status_ptr,
@@ -299,7 +293,7 @@ impl Zypp {
             let status_ptr = &mut status as *mut _ as *mut Status;
             let c_alias = CString::new(alias).unwrap();
             zypp_agama_sys::remove_repository(
-                *self.get_zypp_ptr(),
+                self.ptr,
                 c_alias.as_ptr(),
                 status_ptr,
                 cb,
@@ -320,7 +314,7 @@ impl Zypp {
             let status_ptr = &mut status as *mut _ as *mut Status;
             let c_alias = CString::new(alias).unwrap();
             zypp_agama_sys::build_repository_cache(
-                *self.get_zypp_ptr(),
+                self.ptr,
                 c_alias.as_ptr(),
                 status_ptr,
                 cb,
@@ -336,7 +330,7 @@ impl Zypp {
             let status_ptr = &mut status as *mut _ as *mut Status;
             let c_alias = CString::new(alias).unwrap();
             zypp_agama_sys::load_repository_cache(
-                *self.get_zypp_ptr(),
+                self.ptr,
                 c_alias.as_ptr(),
                 status_ptr,
             );
@@ -348,7 +342,7 @@ impl Zypp {
         unsafe {
             let mut status: Status = Status::default();
             let status_ptr = &mut status as *mut _;
-            let r_res = zypp_agama_sys::run_solver(*self.get_zypp_ptr(), status_ptr);
+            let r_res = zypp_agama_sys::run_solver(self.ptr, status_ptr);
             let result = helpers::status_to_result_void(status);
             result.and(Ok(r_res))
         }
@@ -404,8 +398,7 @@ impl Drop for Zypp {
     fn drop(&mut self) {
         // println!("dropping Zypp");
         unsafe {
-            let ptr = self.inner.lock().unwrap();
-            zypp_agama_sys::free_zypp(*ptr);
+            zypp_agama_sys::free_zypp(self.ptr);
         }
     }
 }
@@ -461,11 +454,18 @@ impl Into<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
     }
 }
 
+// NOTE: as zypp is not thread safe, always run tests sequentially with
+// `cargo test -- --test-threads 1`
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::error::Error;
     use std::process::Command;
+
+    fn setup () {
+        GLOBAL_LOCK.clear_poison();
+        *GLOBAL_LOCK.lock().unwrap() = false;
+    }
 
     fn progress_cb(_text: String, _step: u32, _total: u32) {
         // println!("Test initializing target: {}/{} - {}", _step, _total, _text)
@@ -473,12 +473,14 @@ mod tests {
 
     #[test]
     fn init_target_ok() -> Result<(), Box<dyn Error>> {
+        setup();
         Zypp::init_target("/", progress_cb)?;
         Ok(())
     }
 
     #[test]
     fn init_target_err() -> Result<(), Box<dyn Error>> {
+        setup();
         let result = Zypp::init_target("/nosuchdir", progress_cb);
         assert!(result.is_err());
         Ok(())
@@ -486,6 +488,7 @@ mod tests {
 
     #[test]
     fn init_target_err2() -> Result<(), Box<dyn Error>> {
+        setup();
         // a nonexistent relative root triggers a C++ exception
         let result = Zypp::init_target("not_absolute", progress_cb);
         assert!(result.is_err());
@@ -493,10 +496,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ZYPP_MUTEX for too long")]
+    #[should_panic(expected = "Init target already called and holding zypp pointer.")]
     fn init_target_deadlock() {
-        // Let other test threads succeed before we hog the Mutex.
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        setup();
 
         let _z1 = Zypp::init_target("/", progress_cb).unwrap();
         let _z2 = Zypp::init_target("/mnt", progress_cb).unwrap();
@@ -512,6 +514,7 @@ mod tests {
 
     #[test]
     fn list_repositories_ok() -> Result<(), Box<dyn Error>> {
+        setup();
         let cwd = std::env::current_dir()?;
         let root_buf = cwd.join("fixtures/zypp_root");
         root_buf
