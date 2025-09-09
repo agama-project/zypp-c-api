@@ -77,12 +77,15 @@ where
     Some(progress_callback::<F>)
 }
 
-/// protection against multiple targets and multiple zypp instances
+/// protection ensure that there is just single zypp lock with single target living
 static GLOBAL_LOCK: Mutex<bool> = Mutex::new(false);
+
+/// The only instance of Zypp on which all zypp calls should be invoked.
+/// It is intentionally !Send and !Sync as libzypp gives no guarantees regarding
+/// threads, so it should be run only in single thread and sequentially.
 pub struct Zypp {
     ptr: *mut zypp_agama_sys::Zypp,
 }
-
 
 impl Zypp {
     pub fn init_target<F>(root: &str, progress: F) -> ZyppResult<Self>
@@ -91,7 +94,9 @@ impl Zypp {
         // to provide feedback multiple times
         F: FnMut(String, u32, u32),
     {
-        let mut locked = GLOBAL_LOCK.lock().unwrap_or_else(|_| panic!("thread already panic")); // nicer handling of poisoned threads
+        let mut locked = GLOBAL_LOCK
+            .lock()
+            .unwrap_or_else(|_| panic!("thread already panic")); // nicer handling of poisoned threads
         if *locked {
             panic!("Init target already called and holding zypp pointer.")
         }
@@ -111,9 +116,7 @@ impl Zypp {
             helpers::status_to_result_void(status)?;
             // lock only after we successfully get pointer
             *locked = true;
-            let res = Self {
-                ptr: inner_zypp,
-            };
+            let res = Self { ptr: inner_zypp };
             Ok(res)
         }
     }
@@ -329,11 +332,7 @@ impl Zypp {
             let mut status: Status = Status::default();
             let status_ptr = &mut status as *mut _ as *mut Status;
             let c_alias = CString::new(alias).unwrap();
-            zypp_agama_sys::load_repository_cache(
-                self.ptr,
-                c_alias.as_ptr(),
-                status_ptr,
-            );
+            zypp_agama_sys::load_repository_cache(self.ptr, c_alias.as_ptr(), status_ptr);
             return helpers::status_to_result_void(status);
         }
     }
@@ -400,7 +399,8 @@ impl Drop for Zypp {
         unsafe {
             zypp_agama_sys::free_zypp(self.ptr);
         }
-        // allow to init it again
+        // allow to init it again. If it is poisened, we just get inner pointer, but
+        // it is already end of fun with libzypp.
         let mut locked = GLOBAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         *locked = false;
     }
@@ -457,15 +457,15 @@ impl Into<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
     }
 }
 
-// NOTE: as zypp is not thread safe, always run tests sequentially with
-// `cargo test -- --test-threads 1`
+// NOTE: because some tests panic, it can happen that some Mutexes are poisoned. So always run tests sequentially with
+// `cargo test -- --test-threads 1` otherwise random failures can happen with poisoned GLOBAL_LOCK
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::error::Error;
     use std::process::Command;
 
-    fn setup () {
+    fn setup() {
         GLOBAL_LOCK.clear_poison();
         *GLOBAL_LOCK.lock().unwrap() = false;
     }
