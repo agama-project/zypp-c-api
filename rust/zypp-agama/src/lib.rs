@@ -47,8 +47,7 @@ where
     F: FnMut(i64, String) -> bool,
 {
     let user_data = &mut *(user_data as *mut F);
-    let res = user_data(zypp_data.value, string_from_ptr(zypp_data.name));
-    res
+    user_data(zypp_data.value, string_from_ptr(zypp_data.name))
 }
 
 fn get_zypp_progress_callback<F>(_closure: &F) -> ZyppProgressCallback
@@ -67,7 +66,7 @@ unsafe extern "C" fn progress_callback<F>(
     F: FnMut(String, u32, u32),
 {
     let user_data = &mut *(user_data as *mut F);
-    user_data(string_from_ptr(text), stage.into(), total.into());
+    user_data(string_from_ptr(text), stage, total);
 }
 
 fn get_progress_callback<F>(_closure: &F) -> ProgressCallback
@@ -106,7 +105,7 @@ impl Zypp {
             let cb = get_progress_callback(&closure);
             let c_root = CString::new(root).unwrap();
             let mut status: Status = Status::default();
-            let status_ptr = &mut status as *mut _ as *mut Status;
+            let status_ptr = &mut status as *mut _;
             let inner_zypp = zypp_agama_sys::init_target(
                 c_root.as_ptr(),
                 status_ptr,
@@ -126,7 +125,7 @@ impl Zypp {
 
         unsafe {
             let mut status: Status = Status::default();
-            let status_ptr = &mut status as *mut _ as *mut Status;
+            let status_ptr = &mut status as *mut _;
 
             let mut repos = zypp_agama_sys::list_repositories(self.ptr, status_ptr);
             // unwrap is ok as it will crash only on less then 32b archs,so safe for agama
@@ -142,9 +141,7 @@ impl Zypp {
                 repos_v.push(r_repo);
             }
             let repos_rawp = &mut repos;
-            zypp_agama_sys::free_repository_list(
-                repos_rawp as *mut _ as *mut zypp_agama_sys::RepositoryList,
-            );
+            zypp_agama_sys::free_repository_list(repos_rawp as *mut _);
 
             helpers::status_to_result_void(status).and(Ok(repos_v))
         }
@@ -214,7 +211,8 @@ impl Zypp {
                 who.into(),
                 status_ptr,
             );
-            return helpers::status_to_result_void(status);
+
+            helpers::status_to_result_void(status)
         }
     }
 
@@ -236,7 +234,8 @@ impl Zypp {
                 who.into(),
                 status_ptr,
             );
-            return helpers::status_to_result_void(status);
+
+            helpers::status_to_result_void(status)
         }
     }
 
@@ -247,7 +246,7 @@ impl Zypp {
     ) -> ZyppResult<()> {
         unsafe {
             let mut status: Status = Status::default();
-            let status_ptr = &mut status as *mut _ as *mut Status;
+            let status_ptr = &mut status as *mut _;
             let c_alias = CString::new(alias).unwrap();
             let mut refresh_fn = |mut callbacks| {
                 zypp_agama_sys::refresh_repository(
@@ -258,7 +257,8 @@ impl Zypp {
                 )
             };
             callbacks::with_c_download_callbacks(progress, &mut refresh_fn);
-            return helpers::status_to_result_void(status);
+
+            helpers::status_to_result_void(status)
         }
     }
 
@@ -281,7 +281,8 @@ impl Zypp {
                 cb,
                 &mut closure as *mut _ as *mut c_void,
             );
-            return helpers::status_to_result_void(status);
+
+            helpers::status_to_result_void(status)
         }
     }
 
@@ -293,7 +294,7 @@ impl Zypp {
             let mut closure = progress;
             let cb = get_zypp_progress_callback(&closure);
             let mut status: Status = Status::default();
-            let status_ptr = &mut status as *mut _ as *mut Status;
+            let status_ptr = &mut status as *mut _;
             let c_alias = CString::new(alias).unwrap();
             zypp_agama_sys::remove_repository(
                 self.ptr,
@@ -302,7 +303,8 @@ impl Zypp {
                 cb,
                 &mut closure as *mut _ as *mut c_void,
             );
-            return helpers::status_to_result_void(status);
+
+            helpers::status_to_result_void(status)
         }
     }
 
@@ -314,7 +316,7 @@ impl Zypp {
             let mut closure = progress;
             let cb = get_zypp_progress_callback(&closure);
             let mut status: Status = Status::default();
-            let status_ptr = &mut status as *mut _ as *mut Status;
+            let status_ptr = &mut status as *mut _;
             let c_alias = CString::new(alias).unwrap();
             zypp_agama_sys::build_repository_cache(
                 self.ptr,
@@ -323,17 +325,19 @@ impl Zypp {
                 cb,
                 &mut closure as *mut _ as *mut c_void,
             );
-            return helpers::status_to_result_void(status);
+
+            helpers::status_to_result_void(status)
         }
     }
 
     pub fn load_repo_cache(&self, alias: &str) -> ZyppResult<()> {
         unsafe {
             let mut status: Status = Status::default();
-            let status_ptr = &mut status as *mut _ as *mut Status;
+            let status_ptr = &mut status as *mut _;
             let c_alias = CString::new(alias).unwrap();
             zypp_agama_sys::load_repository_cache(self.ptr, c_alias.as_ptr(), status_ptr);
-            return helpers::status_to_result_void(status);
+
+            helpers::status_to_result_void(status)
         }
     }
 
@@ -414,14 +418,14 @@ pub enum ResolvableKind {
     Product,
 }
 
-impl Into<zypp_agama_sys::RESOLVABLE_KIND> for ResolvableKind {
-    fn into(self) -> zypp_agama_sys::RESOLVABLE_KIND {
-        match self {
-            Self::Package => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PACKAGE,
-            Self::SrcPackage => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_SRCPACKAGE,
-            Self::Patch => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PATCH,
-            Self::Product => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PRODUCT,
-            Self::Pattern => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PATTERN,
+impl From<ResolvableKind> for zypp_agama_sys::RESOLVABLE_KIND {
+    fn from(resolvable_kind: ResolvableKind) -> Self {
+        match resolvable_kind {
+            ResolvableKind::Package => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PACKAGE,
+            ResolvableKind::SrcPackage => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_SRCPACKAGE,
+            ResolvableKind::Patch => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PATCH,
+            ResolvableKind::Product => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PRODUCT,
+            ResolvableKind::Pattern => zypp_agama_sys::RESOLVABLE_KIND_RESOLVABLE_PATTERN,
         }
     }
 }
@@ -446,13 +450,15 @@ impl From<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
     }
 }
 
-impl Into<zypp_agama_sys::RESOLVABLE_SELECTED> for ResolvableSelected {
-    fn into(self) -> zypp_agama_sys::RESOLVABLE_SELECTED {
-        match self {
-            Self::Not => zypp_agama_sys::RESOLVABLE_SELECTED_NOT_SELECTED,
-            Self::User => zypp_agama_sys::RESOLVABLE_SELECTED_USER_SELECTED,
-            Self::Installation => zypp_agama_sys::RESOLVABLE_SELECTED_APPLICATION_SELECTED,
-            Self::Solver => zypp_agama_sys::RESOLVABLE_SELECTED_SOLVER_SELECTED,
+impl From<ResolvableSelected> for zypp_agama_sys::RESOLVABLE_SELECTED {
+    fn from(val: ResolvableSelected) -> Self {
+        match val {
+            ResolvableSelected::Not => zypp_agama_sys::RESOLVABLE_SELECTED_NOT_SELECTED,
+            ResolvableSelected::User => zypp_agama_sys::RESOLVABLE_SELECTED_USER_SELECTED,
+            ResolvableSelected::Installation => {
+                zypp_agama_sys::RESOLVABLE_SELECTED_APPLICATION_SELECTED
+            }
+            ResolvableSelected::Solver => zypp_agama_sys::RESOLVABLE_SELECTED_SOLVER_SELECTED,
         }
     }
 }

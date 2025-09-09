@@ -20,9 +20,9 @@ pub enum ProblemResponse {
     IGNORE,
 }
 
-impl Into<PROBLEM_RESPONSE> for ProblemResponse {
-    fn into(self) -> PROBLEM_RESPONSE {
-        match self {
+impl From<ProblemResponse> for PROBLEM_RESPONSE {
+    fn from(response: ProblemResponse) -> Self {
+        match response {
             ProblemResponse::ABORT => PROBLEM_RESPONSE_PROBLEM_ABORT,
             ProblemResponse::IGNORE => PROBLEM_RESPONSE_PROBLEM_IGNORE,
             ProblemResponse::RETRY => PROBLEM_RESPONSE_PROBLEM_RETRY,
@@ -79,8 +79,7 @@ where
     F: FnMut(i32, String, f64, f64) -> bool,
 {
     let user_data = &mut *(user_data as *mut F);
-    let res = user_data(value.into(), string_from_ptr(url), bps_avg, bps_current);
-    res
+    user_data(value, string_from_ptr(url), bps_avg, bps_current)
 }
 
 fn get_download_progress_progress<F>(_closure: &F) -> ZyppDownloadProgressCallback
@@ -100,11 +99,7 @@ where
     F: FnMut(String, c_int, String) -> ProblemResponse,
 {
     let user_data = &mut *(user_data as *mut F);
-    let res = user_data(
-        string_from_ptr(url),
-        error.into(),
-        string_from_ptr(description),
-    );
+    let res = user_data(string_from_ptr(url), error, string_from_ptr(description));
     res.into()
 }
 
@@ -124,7 +119,7 @@ unsafe extern "C" fn download_progress_finish<F>(
     F: FnMut(String, c_int, String),
 {
     let user_data = &mut *(user_data as *mut F);
-    user_data(string_from_ptr(url), error.into(), string_from_ptr(reason));
+    user_data(string_from_ptr(url), error, string_from_ptr(reason));
 }
 
 fn get_download_progress_finish<F>(_closure: &F) -> ZyppDownloadFinishCallback
