@@ -16,5 +16,6 @@ pub(crate) unsafe fn status_to_result_void(
     };
     let status_ptr = &mut status;
     zypp_agama_sys::free_status(status_ptr as *mut _);
-    return res;
+
+    res
 }

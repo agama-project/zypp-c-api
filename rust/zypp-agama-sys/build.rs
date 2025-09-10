@@ -1,13 +1,14 @@
-use std::{env, path::Path, process::Command};
 use bindgen::builder;
+use std::{env, path::Path, process::Command};
 
 fn main() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let mut cmd = Command::new("make");
     cmd.arg("-C");
     cmd.arg(Path::new(&manifest_dir).join("../../c-layer").as_os_str());
-    if let Err(e) = cmd.output() {
-        panic!("Building C library failed: {}\n", e.to_string().as_str());
+    let result = cmd.status().expect("Failed to start make process");
+    if !result.success() {
+        panic!("Building C library failed.\n");
     }
 
     let bindings = builder()
@@ -17,7 +18,9 @@ fn main() {
         .clang_arg("../../c-layer/include")
         .generate()
         .expect("Unable to generate bindings");
-    bindings.write_to_file("src/bindings.rs").expect("Couldn't write bindings!");
+    bindings
+        .write_to_file("src/bindings.rs")
+        .expect("Couldn't write bindings!");
 
     println!(
         "cargo::rustc-link-search=native={}",
