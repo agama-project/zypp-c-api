@@ -95,9 +95,9 @@ impl Zypp {
     {
         let mut locked = GLOBAL_LOCK
             .lock()
-            .unwrap_or_else(|_| panic!("thread already panic")); // nicer handling of poisoned threads
+            .map_err(|_| ZyppError::new("thread with zypp lock panic"))?;
         if *locked {
-            panic!("Init target already called and holding zypp pointer.")
+            return Err(ZyppError::new("There is already initialized target"))
         }
 
         unsafe {
@@ -505,12 +505,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Init target already called and holding zypp pointer.")]
     fn init_target_deadlock() {
         setup();
 
         let z1 = Zypp::init_target("/", progress_cb).unwrap();
-        let _z2 = Zypp::init_target("/mnt", progress_cb).unwrap();
+        let z2 = Zypp::init_target("/mnt", progress_cb);
+        assert!(z2.is_err());
 
         //fake z1 call to ensure that it is not dropped too soon
         print!("should not reach {:?}", z1.ptr);
