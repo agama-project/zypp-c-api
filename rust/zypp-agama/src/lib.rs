@@ -97,7 +97,7 @@ impl Zypp {
             .lock()
             .map_err(|_| ZyppError::new("thread with zypp lock panic"))?;
         if *locked {
-            return Err(ZyppError::new("There is already initialized target"))
+            return Err(ZyppError::new("There is already initialized target"));
         }
 
         unsafe {
@@ -399,7 +399,7 @@ impl Zypp {
 
 impl Drop for Zypp {
     fn drop(&mut self) {
-        // println!("dropping Zypp");
+        println!("dropping Zypp");
         unsafe {
             zypp_agama_sys::free_zypp(self.ptr);
         }
@@ -472,48 +472,11 @@ mod tests {
     use std::process::Command;
 
     fn setup() {
-        GLOBAL_LOCK.clear_poison();
-        *GLOBAL_LOCK.lock().unwrap() = false;
+        // empty now
     }
 
     fn progress_cb(_text: String, _step: u32, _total: u32) {
         // println!("Test initializing target: {}/{} - {}", _step, _total, _text)
-    }
-
-    #[test]
-    fn init_target_ok() -> Result<(), Box<dyn Error>> {
-        setup();
-        Zypp::init_target("/", progress_cb)?;
-        Ok(())
-    }
-
-    #[test]
-    fn init_target_err() -> Result<(), Box<dyn Error>> {
-        setup();
-        let result = Zypp::init_target("/nosuchdir", progress_cb);
-        assert!(result.is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn init_target_err2() -> Result<(), Box<dyn Error>> {
-        setup();
-        // a nonexistent relative root triggers a C++ exception
-        let result = Zypp::init_target("not_absolute", progress_cb);
-        assert!(result.is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn init_target_deadlock() {
-        setup();
-
-        let z1 = Zypp::init_target("/", progress_cb).unwrap();
-        let z2 = Zypp::init_target("/mnt", progress_cb);
-        assert!(z2.is_err());
-
-        //fake z1 call to ensure that it is not dropped too soon
-        print!("should not reach {:?}", z1.ptr);
     }
 
     // Init a RPM database in *root*, or do nothing if it exists
@@ -525,19 +488,51 @@ mod tests {
     }
 
     #[test]
-    fn list_repositories_ok() -> Result<(), Box<dyn Error>> {
-        setup();
-        let cwd = std::env::current_dir()?;
-        let root_buf = cwd.join("fixtures/zypp_root");
-        root_buf
-            .try_exists()
-            .expect("run this from the dir that has fixtures/");
-        let root = root_buf.to_str().expect("CWD is not UTF-8");
+    fn init_target() -> Result<(), Box<dyn Error>> {
+        // run just single test to avoid threads as it cause zypp to be locked to one of those threads
+        {
+            setup();
+            let result = Zypp::init_target("/", progress_cb);
+            assert!(result.is_ok());
+        }
+        {
+            setup();
+            let result = Zypp::init_target("/nosuchdir", progress_cb);
+            assert!(result.is_err());
+        }
+        {
+            setup();
+            // a nonexistent relative root triggers a C++ exception
+            let result = Zypp::init_target("not_absolute", progress_cb);
+            assert!(result.is_err());
+        }
+        {
+            setup();
 
-        init_rpmdb(root)?;
-        let zypp = Zypp::init_target(root, progress_cb)?;
-        let repos = zypp.list_repositories()?;
-        assert!(repos.len() == 1);
+            // double init of target
+            let z1 = Zypp::init_target("/", progress_cb);
+            let z2 = Zypp::init_target("/mnt", progress_cb);
+            assert!(z2.is_err());
+
+            // z1 call after init target for z2 to ensure that it is not dropped too soon
+            assert!(z1.is_ok())
+        }
+        {
+            // list repositories test
+            setup();
+            let cwd = std::env::current_dir()?;
+            let root_buf = cwd.join("fixtures/zypp_root");
+            root_buf
+                .try_exists()
+                .expect("run this from the dir that has fixtures/");
+            let root = root_buf.to_str().expect("CWD is not UTF-8");
+
+            init_rpmdb(root)?;
+            let zypp = Zypp::init_target(root, progress_cb)?;
+            let repos = zypp.list_repositories()?;
+            assert!(repos.len() == 1);
+            
+        }
         Ok(())
     }
 }
