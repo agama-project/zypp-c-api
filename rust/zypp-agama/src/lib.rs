@@ -497,7 +497,8 @@ mod tests {
         }
         {
             setup();
-            let result = Zypp::init_target("/nosuchdir", progress_cb);
+            // when the target pathis not a (potential) root diretory
+            let result = Zypp::init_target("/dev/full", progress_cb);
             assert!(result.is_err());
         }
         {
